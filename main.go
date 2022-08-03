@@ -19,6 +19,16 @@ import (
 	"github.com/avamsi/heimdall/notify"
 )
 
+func anyOf[T any](slice []T, predicate func(T) bool) bool {
+	fmt.Println(slice)
+	for _, i := range slice {
+		if predicate(i) {
+			return true
+		}
+	}
+	return false
+}
+
 func parseWebhookURL(whURL string) (apiKey, token, spaceID string) {
 	whURLParsed := checks.Check1(url.Parse(whURL))
 	parts := strings.Split(whURLParsed.Path, "/")
@@ -48,6 +58,7 @@ func (Heimdall) Execute(flags struct{ Reset bool }) {
 			panic(err)
 		}
 	}
+	// Make sure we're able to extract the info we need from the Chat webhook URL.
 	parseWebhookURL(viper.GetString("chat.webhook_url"))
 	fmt.Println("All good to go! " +
 		"Please add `source <(heimdall sh)` to your shell config if you haven't already.")
@@ -60,21 +71,36 @@ func (Heimdall) Sh() {
 	fmt.Print(sh)
 }
 
+func bifrost(cmd string) {
+	apiKey, token, spaceID := parseWebhookURL(viper.GetString("chat.webhook_url"))
+	msg := fmt.Sprintf("`$ %v` completed running", cmd)
+	if err := notify.OnChat(context.Background(), apiKey, token, spaceID, msg); err != nil {
+		log.Println(err)
+		checks.Check0(exec.Command("tput", "bel").Run())
+	}
+}
+
 func (Heimdall) Notify(flags struct {
 	Cmd       string
 	StartTime int
 	Code      int
 }) {
-	// Only notify if a command isn't interrupted by the user and runs for longer than 42 seconds.
-	if flags.Code != 130 && time.Now().Unix() < int64(flags.StartTime)+42 {
+	isPrefixOfCmd := func(prefix string) bool {
+		return strings.HasPrefix(flags.Cmd, prefix)
+	}
+	// Don't worry about start time / return code since the user wants be notified explicitly.
+	if viper.GetBool("force_heimdall") ||
+		anyOf(viper.GetStringSlice("commands.always"), isPrefixOfCmd) {
+		bifrost(flags.Cmd)
 		return
 	}
-	apiKey, token, spaceID := parseWebhookURL(viper.GetString("chat.webhook_url"))
-	msg := fmt.Sprintf("`$ %v` completed running", flags.Cmd)
-	if err := notify.OnChat(context.Background(), apiKey, token, spaceID, msg); err != nil {
-		log.Println(err)
-		checks.Check0(exec.Command("tput", "bel").Run())
+	// Don't notify if the command was interrupted by the user / ran for less than 42 seconds /
+	// explicitly blocklisted by the user.
+	if flags.Code == 130 || time.Now().Unix() < int64(flags.StartTime)+42 ||
+		anyOf(viper.GetStringSlice("commands.never"), isPrefixOfCmd) {
+		return
 	}
+	bifrost(flags.Cmd)
 }
 
 func main() {
