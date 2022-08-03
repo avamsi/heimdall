@@ -47,16 +47,15 @@ func init() {
 }
 
 func (Heimdall) Execute(flags struct{ Reset bool }) {
-	if err := viper.ReadInConfig(); err != nil {
-		if _, ok := err.(viper.ConfigFileNotFoundError); ok {
-			fmt.Print("Please enter the Chat webhook URL " +
-				"(this will be saved to ~/.config/heimdall.yaml): ")
-			viper.Set("chat.webhook_url", string(checks.Check1(term.ReadPassword(syscall.Stdin))))
-			fmt.Println()
-			viper.SafeWriteConfig()
-		} else {
-			panic(err)
-		}
+	err := viper.ReadInConfig()
+	if _, ok := err.(viper.ConfigFileNotFoundError); ok || flags.Reset {
+		fmt.Print("Please enter the Chat webhook URL " +
+			"(this will be saved to ~/.config/heimdall.yaml): ")
+		viper.Set("chat.webhook_url", string(checks.Check1(term.ReadPassword(syscall.Stdin))))
+		fmt.Println()
+		checks.Check0(viper.WriteConfig())
+	} else {
+		checks.Check0(err)
 	}
 	// Make sure we're able to extract the info we need from the Chat webhook URL.
 	parseWebhookURL(viper.GetString("chat.webhook_url"))
