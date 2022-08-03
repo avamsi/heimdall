@@ -5,8 +5,10 @@ import (
 	_ "embed"
 	"errors"
 	"fmt"
+	"log"
 	"net/url"
 	"os"
+	"os/exec"
 	"os/user"
 	"path/filepath"
 	"strings"
@@ -29,8 +31,23 @@ func check1[T any](arg T, err error) T {
 	return arg
 }
 
-func parseWebhookURL(whURL []byte) (apiKey, token, spaceID string) {
-	whURLParsed := check1(url.Parse(strings.TrimSpace(string(whURL))))
+var cfgPath string = filepath.Join(check1(user.Current()).HomeDir, ".config/heimdal")
+
+func parseCfg() (whURL string, err error) {
+	defer func() {
+		if err != nil {
+			err = fmt.Errorf("failed to parse config: %w", err)
+		}
+	}()
+	whURLBytes, err := os.ReadFile(cfgPath)
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(string(whURLBytes)), nil
+}
+
+func parseWebhookURL(whURL string) (apiKey, token, spaceID string) {
+	whURLParsed := check1(url.Parse(whURL))
 	parts := strings.Split(whURLParsed.Path, "/")
 	if !(parts[1] == "v1" && parts[2] == "spaces" && parts[4] == "messages") {
 		panic(fmt.Sprintf("want: /v1/spaces/{spaceID}/messages; got: %v", whURLParsed.Path))
@@ -38,13 +55,27 @@ func parseWebhookURL(whURL []byte) (apiKey, token, spaceID string) {
 	return whURLParsed.Query().Get("key"), whURLParsed.Query().Get("token"), parts[3]
 }
 
-var (
-	cfgPath string = filepath.Join(check1(user.Current()).HomeDir, ".config/heimdal")
-	//go:embed heimdal.sh
-	sh string
-)
-
 type Heimdal struct{}
+
+func (Heimdal) Execute(flags struct{ Reset bool }) {
+	whURL, err := parseCfg()
+	if errors.Is(err, os.ErrNotExist) || flags.Reset {
+		fmt.Print("Please enter the webhook URL (this will be saved to ~/.config/heimdal): ")
+		whURL = strings.TrimSpace(string(check1(term.ReadPassword(syscall.Stdin))))
+		fmt.Println()
+		check1(
+			os.OpenFile(cfgPath, os.O_CREATE|os.O_EXCL|os.O_WRONLY, os.ModePerm),
+		).WriteString(whURL)
+	} else {
+		check0(err)
+	}
+	parseWebhookURL(whURL)
+	fmt.Println("All good to go! " +
+		"Please add `source <(heimdal sh)` to your shell config if you haven't already.")
+}
+
+//go:embed heimdal.sh
+var sh string
 
 func (Heimdal) Sh() {
 	fmt.Print(sh)
@@ -54,18 +85,12 @@ func (Heimdal) Watch(flags struct {
 	Cmd string
 	T   int
 }) {
-	whURL, err := os.ReadFile(cfgPath)
-	if errors.Is(err, os.ErrNotExist) {
-		fmt.Print("Please enter the webhook URL (this will be saved to ~/.config/heimdal): ")
-		whURL = check1(term.ReadPassword(syscall.Stdin))
-		fmt.Println()
-		check1(os.OpenFile(cfgPath, os.O_CREATE|os.O_EXCL|os.O_WRONLY, os.ModePerm)).Write(whURL)
-	} else {
-		check0(err)
-	}
-	apiKey, token, spaceID := parseWebhookURL(whURL)
+	apiKey, token, spaceID := parseWebhookURL(check1(parseCfg()))
 	msg := fmt.Sprintf("%v @ %v", flags.Cmd, flags.T) // TODO(avamsi): make this actually useful.
-	check0(notify.OnChat(context.Background(), apiKey, token, spaceID, msg))
+	if err := notify.OnChat(context.Background(), apiKey, token, spaceID, msg); err != nil {
+		log.Println(err)
+		check0(exec.Command("tput", "bel").Run())
+	}
 }
 
 func main() {
