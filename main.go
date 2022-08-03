@@ -3,39 +3,21 @@ package main
 import (
 	"context"
 	_ "embed"
-	"errors"
 	"fmt"
 	"log"
 	"net/url"
-	"os"
 	"os/exec"
-	"os/user"
-	"path/filepath"
 	"strings"
 	"syscall"
 	"time"
 
 	"github.com/avamsi/checks"
 	"github.com/avamsi/eclipse"
+	"github.com/spf13/viper"
 	"golang.org/x/term"
 
 	"github.com/avamsi/heimdall/notify"
 )
-
-var cfgPath string = filepath.Join(checks.Check1(user.Current()).HomeDir, ".config/heimdall")
-
-func parseCfg() (whURL string, err error) {
-	defer func() {
-		if err != nil {
-			err = fmt.Errorf("failed to parse config: %w", err)
-		}
-	}()
-	whURLBytes, err := os.ReadFile(cfgPath)
-	if err != nil {
-		return "", err
-	}
-	return strings.TrimSpace(string(whURLBytes)), nil
-}
 
 func parseWebhookURL(whURL string) (apiKey, token, spaceID string) {
 	whURLParsed := checks.Check1(url.Parse(whURL))
@@ -48,19 +30,25 @@ func parseWebhookURL(whURL string) (apiKey, token, spaceID string) {
 
 type Heimdall struct{}
 
+func init() {
+	viper.SetConfigName("heimdall")
+	viper.SetConfigType("yaml")
+	viper.AddConfigPath("$HOME/.config")
+	viper.BindEnv("force_heimdall")
+}
+
 func (Heimdall) Execute(flags struct{ Reset bool }) {
-	whURL, err := parseCfg()
-	if errors.Is(err, os.ErrNotExist) || flags.Reset {
-		fmt.Print("Please enter the webhook URL (this will be saved to ~/.config/heimdall): ")
-		whURL = strings.TrimSpace(string(checks.Check1(term.ReadPassword(syscall.Stdin))))
-		fmt.Println()
-		checks.Check1(
-			os.OpenFile(cfgPath, os.O_CREATE|os.O_EXCL|os.O_WRONLY, os.ModePerm),
-		).WriteString(whURL)
-	} else {
-		checks.Check0(err)
+	if err := viper.ReadInConfig(); err != nil {
+		if _, ok := err.(viper.ConfigFileNotFoundError); ok {
+			fmt.Print("Please enter the Chat webhook URL " +
+				"(this will be saved to ~/.config/heimdall): ")
+			viper.Set("chat.webhook_url", string(checks.Check1(term.ReadPassword(syscall.Stdin))))
+			viper.SafeWriteConfig()
+		} else {
+			panic(err)
+		}
 	}
-	parseWebhookURL(whURL)
+	parseWebhookURL(viper.GetString("chat.webhook_url"))
 	fmt.Println("All good to go! " +
 		"Please add `source <(heimdall sh)` to your shell config if you haven't already.")
 }
@@ -81,7 +69,7 @@ func (Heimdall) Notify(flags struct {
 	if flags.Code != 130 && time.Now().Unix() < int64(flags.StartTime)+42 {
 		return
 	}
-	apiKey, token, spaceID := parseWebhookURL(checks.Check1(parseCfg()))
+	apiKey, token, spaceID := parseWebhookURL(viper.GetString("chat.webhook_url"))
 	msg := fmt.Sprintf("`$ %v` completed running", flags.Cmd)
 	if err := notify.OnChat(context.Background(), apiKey, token, spaceID, msg); err != nil {
 		log.Println(err)
