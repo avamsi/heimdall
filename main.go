@@ -53,6 +53,7 @@ func (Heimdall) Execute(flags struct{ Reset bool }) {
 			fmt.Print("Please enter the Chat webhook URL " +
 				"(this will be saved to ~/.config/heimdall.yaml): ")
 			viper.Set("chat.webhook_url", string(checks.Check1(term.ReadPassword(syscall.Stdin))))
+			fmt.Println()
 			viper.SafeWriteConfig()
 		} else {
 			panic(err)
