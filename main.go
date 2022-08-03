@@ -73,14 +73,15 @@ func (Heimdall) Sh() {
 }
 
 func (Heimdall) Notify(flags struct {
-	Cmd string
-	T   int
+	Cmd       string
+	StartTime int
+	Code      int
 }) {
-	apiKey, token, spaceID := parseWebhookURL(checks.Check1(parseCfg()))
-	// Only notify if a command runs longer than 42 seconds.
-	if time.Now().Unix() < int64(flags.T)+42 {
+	// Only notify if a command isn't interrupted by the user and runs for longer than 42 seconds.
+	if flags.Code != 130 && time.Now().Unix() < int64(flags.StartTime)+42 {
 		return
 	}
+	apiKey, token, spaceID := parseWebhookURL(checks.Check1(parseCfg()))
 	msg := fmt.Sprintf("`$ %v` completed running", flags.Cmd)
 	if err := notify.OnChat(context.Background(), apiKey, token, spaceID, msg); err != nil {
 		log.Println(err)
