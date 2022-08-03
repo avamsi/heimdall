@@ -20,7 +20,6 @@ import (
 )
 
 func anyOf[T any](slice []T, predicate func(T) bool) bool {
-	fmt.Println(slice)
 	for _, i := range slice {
 		if predicate(i) {
 			return true
