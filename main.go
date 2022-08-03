@@ -5,13 +5,14 @@ import (
 	_ "embed"
 	"errors"
 	"fmt"
-	"heimdal/notify"
 	"net/url"
 	"os"
 	"os/user"
 	"path/filepath"
 	"strings"
 	"syscall"
+
+	"github.com/avamsi/heimdal/notify"
 
 	"github.com/avamsi/eclipse"
 	"golang.org/x/term"
