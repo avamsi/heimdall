@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/avamsi/eclipse"
 	"golang.org/x/term"
@@ -86,7 +87,11 @@ func (Heimdal) Watch(flags struct {
 	T   int
 }) {
 	apiKey, token, spaceID := parseWebhookURL(check1(parseCfg()))
-	msg := fmt.Sprintf("%v @ %v", flags.Cmd, flags.T) // TODO(avamsi): make this actually useful.
+	// Only notify if a command runs longer than 42 seconds.
+	if time.Now().Unix() < int64(flags.T)+42 {
+		return
+	}
+	msg := fmt.Sprintf("`$ %v` completed running", flags.Cmd)
 	if err := notify.OnChat(context.Background(), apiKey, token, spaceID, msg); err != nil {
 		log.Println(err)
 		check0(exec.Command("tput", "bel").Run())
