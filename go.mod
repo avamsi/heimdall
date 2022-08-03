@@ -3,6 +3,7 @@ module github.com/avamsi/heimdall
 go 1.18
 
 require (
+	github.com/avamsi/checks v0.0.0-20220803055130-6b41ef0ea8d1
 	github.com/avamsi/eclipse v0.0.0-20220802165447-a455644c1a7f
 	golang.org/x/term v0.0.0-20220722155259-a9ba230a4035
 	google.golang.org/api v0.90.0
