@@ -12,10 +12,10 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/avamsi/heimdal/notify"
-
 	"github.com/avamsi/eclipse"
 	"golang.org/x/term"
+
+	"github.com/avamsi/heimdal/notify"
 )
 
 func check0(err error) {
@@ -30,13 +30,12 @@ func check1[T any](arg T, err error) T {
 }
 
 func parseWebhookURL(whURL []byte) (apiKey, token, spaceID string) {
-	whURLParsed := check1(url.Parse(string(whURL)))
+	whURLParsed := check1(url.Parse(strings.TrimSpace(string(whURL))))
 	parts := strings.Split(whURLParsed.Path, "/")
-	fmt.Println(parts)
-	if !(parts[0] == "v1" && parts[1] == "spaces" && parts[3] == "messages") {
+	if !(parts[1] == "v1" && parts[2] == "spaces" && parts[4] == "messages") {
 		panic(fmt.Sprintf("want: /v1/spaces/{spaceID}/messages; got: %v", whURLParsed.Path))
 	}
-	return whURLParsed.Query().Get("key"), whURLParsed.Query().Get("token"), parts[2]
+	return whURLParsed.Query().Get("key"), whURLParsed.Query().Get("token"), parts[3]
 }
 
 var (
