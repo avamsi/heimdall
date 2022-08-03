@@ -85,6 +85,7 @@ func (Heimdall) Notify(flags struct {
 	StartTime int
 	Code      int
 }) {
+	checks.Check0(viper.ReadInConfig())
 	isPrefixOfCmd := func(prefix string) bool {
 		return strings.HasPrefix(flags.Cmd, prefix)
 	}
