@@ -12,7 +12,7 @@ _github_io_avamsi_heimdal_preexec() {
 _github_io_avamsi_heimdal_precmd() {
   local r=$?
   [[ $_github_io_avamsi_heimdal_cmd == '_github_io_avamsi_heimdal_none' ]] && return $r
-  heimdal --cmd="$_github_io_avamsi_heimdal_cmd" --t="$_github_io_avamsi_heimdal_t"
+  heimdal notify --cmd="$_github_io_avamsi_heimdal_cmd" --t="$_github_io_avamsi_heimdal_t"
   return $r
 }
 

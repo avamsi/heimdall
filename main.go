@@ -82,7 +82,7 @@ func (Heimdal) Sh() {
 	fmt.Print(sh)
 }
 
-func (Heimdal) Watch(flags struct {
+func (Heimdal) Notify(flags struct {
 	Cmd string
 	T   int
 }) {
