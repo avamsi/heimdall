@@ -1,4 +1,4 @@
-module github.com/avamsi/heimdal
+module github.com/avamsi/heimdall
 
 go 1.18
 

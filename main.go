@@ -18,7 +18,7 @@ import (
 	"github.com/avamsi/eclipse"
 	"golang.org/x/term"
 
-	"github.com/avamsi/heimdal/notify"
+	"github.com/avamsi/heimdall/notify"
 )
 
 func check0(err error) {
@@ -32,7 +32,7 @@ func check1[T any](arg T, err error) T {
 	return arg
 }
 
-var cfgPath string = filepath.Join(check1(user.Current()).HomeDir, ".config/heimdal")
+var cfgPath string = filepath.Join(check1(user.Current()).HomeDir, ".config/heimdall")
 
 func parseCfg() (whURL string, err error) {
 	defer func() {
@@ -56,12 +56,12 @@ func parseWebhookURL(whURL string) (apiKey, token, spaceID string) {
 	return whURLParsed.Query().Get("key"), whURLParsed.Query().Get("token"), parts[3]
 }
 
-type Heimdal struct{}
+type Heimdall struct{}
 
-func (Heimdal) Execute(flags struct{ Reset bool }) {
+func (Heimdall) Execute(flags struct{ Reset bool }) {
 	whURL, err := parseCfg()
 	if errors.Is(err, os.ErrNotExist) || flags.Reset {
-		fmt.Print("Please enter the webhook URL (this will be saved to ~/.config/heimdal): ")
+		fmt.Print("Please enter the webhook URL (this will be saved to ~/.config/heimdall): ")
 		whURL = strings.TrimSpace(string(check1(term.ReadPassword(syscall.Stdin))))
 		fmt.Println()
 		check1(
@@ -72,17 +72,17 @@ func (Heimdal) Execute(flags struct{ Reset bool }) {
 	}
 	parseWebhookURL(whURL)
 	fmt.Println("All good to go! " +
-		"Please add `source <(heimdal sh)` to your shell config if you haven't already.")
+		"Please add `source <(heimdall sh)` to your shell config if you haven't already.")
 }
 
-//go:embed heimdal.sh
+//go:embed heimdall.sh
 var sh string
 
-func (Heimdal) Sh() {
+func (Heimdall) Sh() {
 	fmt.Print(sh)
 }
 
-func (Heimdal) Notify(flags struct {
+func (Heimdall) Notify(flags struct {
 	Cmd string
 	T   int
 }) {
@@ -99,5 +99,5 @@ func (Heimdal) Notify(flags struct {
 }
 
 func main() {
-	eclipse.Execute(Heimdal{})
+	eclipse.Execute(Heimdall{})
 }
