@@ -3,8 +3,8 @@ module github.com/avamsi/heimdall
 go 1.18
 
 require (
-	github.com/avamsi/eclipse v0.0.0-20220805200814-bd2b8e83de35
-	github.com/avamsi/ergo v0.0.0-20220806060607-ec41151bdb43
+	github.com/avamsi/eclipse v0.0.0-20220806060821-ae1d885157ff
+	github.com/avamsi/ergo v0.0.0-20220806062525-33d2340c8ef4
 	github.com/fsnotify/fsnotify v1.5.4
 	golang.org/x/term v0.0.0-20220722155259-a9ba230a4035
 	google.golang.org/api v0.91.0
@@ -12,7 +12,6 @@ require (
 
 require (
 	cloud.google.com/go/compute v1.7.0 // indirect
-	github.com/avamsi/checks v0.0.0-20220805052055-0460f5d68e2c // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/google/uuid v1.3.0 // indirect

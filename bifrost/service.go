@@ -2,7 +2,6 @@ package bifrost
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 	"time"
 
@@ -28,11 +27,7 @@ func (srvr serverShim) Stop(srvc service.Service) error {
 }
 
 func NewService(s *http.Server, cfgPath string) (_ service.Service, err error) {
-	defer func() {
-		if err != nil {
-			err = fmt.Errorf("failed to create a new service: %w", err)
-		}
-	}()
+	defer ergo.Annotate(&err, "failed to create a new service")
 	cfg := &service.Config{
 		Name:      "com.github.io.avamsi.heimdall.bifrost",
 		Arguments: []string{"bifrost", "run", "--config=" + cfgPath},

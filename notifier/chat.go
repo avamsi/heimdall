@@ -17,11 +17,7 @@ type Chat struct {
 }
 
 func (c *Chat) Notify(msg string) (err error) {
-	defer func() {
-		if err != nil {
-			err = fmt.Errorf("failed to notify on chat: %w", err)
-		}
-	}()
+	defer ergo.Annotate(&err, "failed to notify on chat")
 	call := c.service.Spaces.Messages.Create("spaces/"+c.spaceID, &chat.Message{Text: msg})
 	return ergo.Error1(call.Context(context.TODO()).Do(c.token))
 }

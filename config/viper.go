@@ -34,11 +34,7 @@ func init() {
 }
 
 func Load(cfgPath string) (err error) {
-	defer func() {
-		if err != nil {
-			err = fmt.Errorf("failed to load config: %w", err)
-		}
-	}()
+	defer ergo.Annotate(&err, "failed to load config")
 	viper.AddConfigPath(cfgPath)
 	if err := viper.ReadInConfig(); err != nil {
 		cfg404 := viper.ConfigFileNotFoundError{}
@@ -74,12 +70,8 @@ func BifrostPort() int {
 }
 
 func ChatOptions() (apiKey, token, spaceID string, err error) {
+	defer ergo.Annotate(&err, "failed to parse chat webhook URL")
 	raw := viper.GetString("chat.webhook_url")
-	defer func() {
-		if err != nil {
-			err = fmt.Errorf("failed to parse chat webhook URL: %w", err)
-		}
-	}()
 	parsed, err := url.Parse(raw)
 	if err != nil {
 		return "", "", "", err
