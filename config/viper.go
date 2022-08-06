@@ -8,6 +8,7 @@ import (
 	"syscall"
 	"unicode"
 
+	"github.com/avamsi/ergo"
 	"github.com/fsnotify/fsnotify"
 	"github.com/spf13/viper"
 	"golang.org/x/term"
@@ -50,8 +51,7 @@ func Load(cfgPath string) (err error) {
 			return err
 		}
 	}
-	_, _, _, err = ChatOptions()
-	return err
+	return ergo.Error3(ChatOptions())
 }
 
 func OnConfigChange(run func()) {

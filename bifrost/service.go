@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/avamsi/checks"
+	"github.com/avamsi/ergo"
 	"github.com/kardianos/service"
 )
 
@@ -15,13 +15,13 @@ type serverShim struct {
 }
 
 func (srvr serverShim) Start(srvc service.Service) error {
-	checks.Check1(srvc.Logger(nil)).Infof("Listening on %s..", srvr.Addr)
-	go checks.Check0(srvr.ListenAndServe())
+	ergo.Check1(srvc.Logger(nil)).Infof("Listening on %s..", srvr.Addr)
+	go ergo.Check0(srvr.ListenAndServe())
 	return nil
 }
 
 func (srvr serverShim) Stop(srvc service.Service) error {
-	checks.Check1(srvc.Logger(nil)).Warning("Stopping..")
+	ergo.Check1(srvc.Logger(nil)).Warning("Stopping..")
 	ctx, cancel := context.WithTimeout(context.TODO(), 5*time.Second)
 	defer cancel()
 	return srvr.Shutdown(ctx)

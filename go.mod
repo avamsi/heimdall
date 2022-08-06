@@ -3,14 +3,15 @@ module github.com/avamsi/heimdall
 go 1.18
 
 require (
-	github.com/avamsi/checks v0.0.0-20220805052055-0460f5d68e2c
 	github.com/avamsi/eclipse v0.0.0-20220805200814-bd2b8e83de35
+	github.com/avamsi/ergo v0.0.0-20220806060607-ec41151bdb43
 	github.com/fsnotify/fsnotify v1.5.4
 	golang.org/x/term v0.0.0-20220722155259-a9ba230a4035
 	google.golang.org/api v0.91.0
 )
 
 require (
+	github.com/avamsi/checks v0.0.0-20220805052055-0460f5d68e2c // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
 	github.com/magiconair/properties v1.8.6 // indirect
 	github.com/mitchellh/mapstructure v1.5.0 // indirect

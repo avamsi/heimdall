@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/avamsi/checks"
+	"github.com/avamsi/ergo"
 	"github.com/avamsi/heimdall/config"
 	"github.com/avamsi/heimdall/notifier"
 )
@@ -46,7 +46,7 @@ func (s *server) notifyHandlerAsync(r *NotifyRequest) {
 	msg := fmt.Sprintf("`$ %s` completed running", r.Cmd)
 	if err := s.chat.Notify(msg); err != nil {
 		log.Println(err)
-		checks.Check0(exec.Command("tput", "bel").Run())
+		ergo.Check0(exec.Command("tput", "bel").Run())
 	}
 }
 
