@@ -11,7 +11,7 @@ import (
 
 	"github.com/avamsi/ergo"
 	"github.com/avamsi/heimdall/config"
-	"github.com/avamsi/heimdall/notifier"
+	"github.com/avamsi/heimdall/notifiers"
 )
 
 func anyOf[T any](slice []T, predicate func(T) bool) bool {
@@ -25,7 +25,7 @@ func anyOf[T any](slice []T, predicate func(T) bool) bool {
 
 type server struct {
 	*http.Server
-	chat *notifier.Chat
+	chat *notifiers.Chat
 }
 
 func (s *server) notifyHandlerAsync(r *NotifyRequest) {
@@ -63,7 +63,7 @@ func (s *server) notifyHandler(w http.ResponseWriter, r *http.Request) {
 	go s.notifyHandlerAsync(nr)
 }
 
-func NewServer(port int, chat *notifier.Chat) *server {
+func NewServer(port int, chat *notifiers.Chat) *server {
 	s := &server{&http.Server{Addr: fmt.Sprintf("localhost:%d", port)}, chat}
 	http.HandleFunc("/notify", s.notifyHandler)
 	return s

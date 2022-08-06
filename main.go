@@ -15,7 +15,7 @@ import (
 
 	"github.com/avamsi/heimdall/bifrost"
 	"github.com/avamsi/heimdall/config"
-	"github.com/avamsi/heimdall/notifier"
+	"github.com/avamsi/heimdall/notifiers"
 )
 
 type Heimdall struct {
@@ -37,7 +37,7 @@ func (b Bifrost) bifrostService() service.Service {
 		cfgPath = b.Heimdall.Config()
 	}
 	ergo.Check0(config.Load(cfgPath))
-	chat := ergo.Check1(notifier.NewChat(ergo.Check3(config.ChatOptions())))
+	chat := ergo.Check1(notifiers.NewChat(ergo.Check3(config.ChatOptions())))
 	server := bifrost.NewServer(config.BifrostPort(), chat).Server
 	return ergo.Check1(bifrost.NewService(server, cfgPath))
 }
