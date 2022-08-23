@@ -49,11 +49,11 @@ type bifrost struct {
 }
 
 func (b *bifrost) preexecAsync(todo context.Context, req *pb.PreexecRequest, id string) {
-	b.sync.Lock()
-	defer b.sync.Unlock()
 	cmd := req.GetCommand()
 	cmd.Id = id
+	b.sync.Lock()
 	b.sync.cmds[id] = cmd
+	b.sync.Unlock()
 }
 
 func (b *bifrost) Preexec(todo context.Context, req *pb.PreexecRequest) (*pb.PreexecResponse, error) {
@@ -63,6 +63,11 @@ func (b *bifrost) Preexec(todo context.Context, req *pb.PreexecRequest) (*pb.Pre
 }
 
 func (b *bifrost) precmdAsync(todo context.Context, req *pb.PrecmdRequest) {
+	defer func() {
+		b.sync.Lock()
+		delete(b.sync.cmds, req.Command.GetId())
+		b.sync.Unlock()
+	}()
 	// Don't notify if the command was interrupted by the user.
 	if req.GetReturnCode() == 130 {
 		return
@@ -75,16 +80,16 @@ func (b *bifrost) precmdAsync(todo context.Context, req *pb.PrecmdRequest) {
 	// notified for it (unless the user requested to always be notified for it).
 	alwaysNotify := anyOf(b.config.AlwaysNotifyCommands(), isPrefixOfCmd)
 	neverNotify := anyOf(b.config.NeverNotifyCommands(), isPrefixOfCmd)
-	if !alwaysNotify && (neverNotify || time.Since(cmd.GetPreexecTime().AsTime()) < 42*time.Second) {
+	t := cmd.GetPreexecTime().AsTime()
+	d := time.Since(t)
+	if !alwaysNotify && (neverNotify || d < 42*time.Second) {
 		return
 	}
-	t := cmd.GetPreexecTime().AsTime()
-	// TODO: add duration of the command to msg here.
-	msg := fmt.Sprintf("[%s] `$ %s` -> %d in %s", t.Format(time.Kitchen), cmd.GetCommand(), req.GetReturnCode(), time.Since(t))
+	msg := fmt.Sprintf("[%s] `$ %s` -> %d in %s", t.Format(time.Kitchen), cmd.GetCommand(), req.GetReturnCode(), d)
 	b.sync.Lock()
-	defer b.sync.Unlock()
-	delete(b.sync.cmds, cmd.GetId())
-	if err := b.sync.notifier.Notify(msg); err != nil {
+	err := b.sync.notifier.Notify(msg)
+	b.sync.Unlock()
+	if err != nil {
 		log.Println(err)
 		ergo.Must0(exec.Command("tput", "bel").Run())
 	}
