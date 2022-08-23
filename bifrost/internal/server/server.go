@@ -92,7 +92,7 @@ func (b *bifrost) precmdAsync(todo context.Context, req *pb.PrecmdRequest) {
 
 func (b *bifrost) Precmd(todo context.Context, req *pb.PrecmdRequest) (*pb.PrecmdResponse, error) {
 	go b.precmdAsync(todo, req)
-	return nil, nil
+	return &pb.PrecmdResponse{}, nil
 }
 
 func (b *bifrost) ListCommands(todo context.Context, _ *pb.ListCommandsRequest) (*pb.ListCommandsResponse, error) {
