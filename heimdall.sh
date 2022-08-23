@@ -17,7 +17,7 @@ _github_io_avamsi_heimdall_precmd() {
     [[ $_github_io_avamsi_heimdall_cmd == '_github_io_avamsi_heimdall_nil' ]] && return $code
     heimdall precmd \
         --cmd="$_github_io_avamsi_heimdall_cmd" \
-        --preexec_time="$_github_io_avamsi_heimdall_preexec_time" \
+        --preexec-time="$_github_io_avamsi_heimdall_preexec_time" \
         --code=$code
     # Reset back to nil since it's possible for precmd to be called without preexec (Ctrl-C, for example).
     _github_io_avamsi_heimdall_cmd='_github_io_avamsi_heimdall_nil'

@@ -83,6 +83,7 @@ func (b *bifrost) precmdAsync(todo context.Context, req *pb.PrecmdRequest) {
 	msg := fmt.Sprintf("[%s] `$ %s` -> %d in %s", t.Format(time.Kitchen), cmd.GetCommand(), req.GetReturnCode(), time.Since(t))
 	b.sync.Lock()
 	defer b.sync.Unlock()
+	delete(b.sync.cmds, cmd.GetId())
 	if err := b.sync.notifier.Notify(msg); err != nil {
 		log.Println(err)
 		ergo.Must0(exec.Command("tput", "bel").Run())
