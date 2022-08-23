@@ -25,7 +25,7 @@ type Config interface {
 func NewClient(c Config) pb.BifrostClient {
 	addr := fmt.Sprintf("localhost:%d", c.BifrostPort())
 	creds := grpc.WithTransportCredentials(insecure.NewCredentials())
-	conn := ergo.Check1(grpc.Dial(addr, creds))
+	conn := ergo.Must1(grpc.Dial(addr, creds))
 	return pb.NewBifrostClient(conn)
 }
 
@@ -38,6 +38,6 @@ type Service interface {
 }
 
 func NewService(c Config) Service {
-	chat := ergo.Check1(notifiers.NewChat(ergo.Check3(c.ChatOptions())))
-	return ergo.Check1(service.New(server.New(c, chat), c.Dir()))
+	chat := ergo.Must1(notifiers.NewChat(ergo.Must3(c.ChatOptions())))
+	return ergo.Must1(service.New(server.New(c, chat), c.Dir()))
 }

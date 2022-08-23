@@ -23,7 +23,7 @@ import (
 type Heimdall struct{}
 
 func (Heimdall) Config() string {
-	return filepath.Join(ergo.Check1(os.UserHomeDir()), ".config")
+	return filepath.Join(ergo.Must1(os.UserHomeDir()), ".config")
 }
 
 type Bifrost struct {
@@ -36,7 +36,7 @@ func (b Bifrost) newService() bifrost.Service {
 	if cfgDir == "" {
 		cfgDir = b.H.Config()
 	}
-	return bifrost.NewService(ergo.Check1(config.Load(cfgDir)))
+	return bifrost.NewService(ergo.Must1(config.Load(cfgDir)))
 }
 
 func (b Bifrost) Run() error {
@@ -72,7 +72,7 @@ type PreexecOpts struct {
 }
 
 func (h Heimdall) Preexec(opts PreexecOpts) (string, error) {
-	c := ergo.Check1(config.Load(h.Config()))
+	c := ergo.Must1(config.Load(h.Config()))
 	resp, err := bifrost.NewClient(c).Preexec(context.TODO(), &bpb.PreexecRequest{
 		Command: &bpb.Command{
 			Command:     opts.Cmd,
@@ -92,20 +92,20 @@ type PrecmdOpts struct {
 }
 
 func (h Heimdall) Precmd(opts PrecmdOpts) error {
-	c := ergo.Check1(config.Load(h.Config()))
+	c := ergo.Must1(config.Load(h.Config()))
 	_, err := bifrost.NewClient(c).Precmd(context.TODO(), &bpb.PrecmdRequest{
 		Command: &bpb.Command{
 			Command:     opts.Cmd,
 			PreexecTime: timestamppb.New(time.UnixMilli(1000 * opts.PreexecTime)),
 		},
 		ReturnCode:  opts.Code,
-		ForceNotify: ergo.Check1(c.EnvAsBool("HEIMDALL_FORCE_NOTIFY")),
+		ForceNotify: ergo.Must1(c.EnvAsBool("HEIMDALL_FORCE_NOTIFY")),
 	})
 	return err
 }
 
 func (h Heimdall) List() error {
-	c := ergo.Check1(config.Load(h.Config()))
+	c := ergo.Must1(config.Load(h.Config()))
 	resp, err := bifrost.NewClient(c).ListCommands(context.TODO(), &bpb.ListCommandsRequest{})
 	if err != nil {
 		return err

@@ -22,7 +22,7 @@ func (srvr server) Start(srvc service.Service) error {
 	}
 	logger.Infof("Listening on %s..", srvr.s.Addr())
 	go func() {
-		ergo.Check0(srvr.s.Start())
+		ergo.Must0(srvr.s.Start())
 	}()
 	return nil
 }

@@ -85,7 +85,7 @@ func (b *bifrost) precmdAsync(todo context.Context, req *pb.PrecmdRequest) {
 	defer b.sync.Unlock()
 	if err := b.sync.notifier.Notify(msg); err != nil {
 		log.Println(err)
-		ergo.Check0(exec.Command("tput", "bel").Run())
+		ergo.Must0(exec.Command("tput", "bel").Run())
 	}
 }
 
