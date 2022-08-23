@@ -7,7 +7,7 @@ _github_io_avamsi_heimdall_preexec() {
     _github_io_avamsi_heimdall_cmd=$1
     # TODO: instead of time, maybe we should get and store a unique ID?
     _github_io_avamsi_heimdall_preexec_time=$(date +%s)
-    heimdall prexec \
+    heimdall preexec \
         --cmd="$_github_io_avamsi_heimdall_cmd" \
         --time="$_github_io_avamsi_heimdall_preexec_time"
 }
