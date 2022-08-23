@@ -67,9 +67,8 @@ func (Heimdall) Sh() {
 }
 
 type PreexecOpts struct {
-	Cmd string
-	// Seconds from Epoch.
-	Time int64
+	Cmd  string
+	Time int64 // seconds from epoch
 }
 
 func (h Heimdall) Preexec(opts PreexecOpts) (string, error) {
@@ -87,11 +86,9 @@ func (h Heimdall) Preexec(opts PreexecOpts) (string, error) {
 }
 
 type PrecmdOpts struct {
-	Cmd string
-	// Seconds from Epoch.
-	PreexecTime int64
-	// Return code of the command.
-	Code int32
+	Cmd         string
+	PreexecTime int64 // seconds from epoch
+	Code        int32 // return code of the command
 }
 
 func (h Heimdall) Precmd(opts PrecmdOpts) error {
@@ -123,6 +120,10 @@ func (h Heimdall) List() error {
 	return nil
 }
 
+//go:generate eclipse docs --out=eclipse.docs
+//go:embed eclipse.docs
+var docs []byte
+
 func main() {
-	eclipse.Execute(Heimdall{}, Bifrost{})
+	eclipse.Execute(docs, Heimdall{}, Bifrost{})
 }

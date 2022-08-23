@@ -5,6 +5,7 @@ import (
 
 	"github.com/avamsi/ergo"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 
 	"github.com/avamsi/heimdall/bifrost/internal/server"
 	"github.com/avamsi/heimdall/bifrost/internal/service"
@@ -22,7 +23,9 @@ type Config interface {
 }
 
 func NewClient(c Config) pb.BifrostClient {
-	conn := ergo.Check1(grpc.Dial(fmt.Sprintf("localhost:%d", c.BifrostPort())))
+	addr := fmt.Sprintf("localhost:%d", c.BifrostPort())
+	creds := grpc.WithTransportCredentials(insecure.NewCredentials())
+	conn := ergo.Check1(grpc.Dial(addr, creds))
 	return pb.NewBifrostClient(conn)
 }
 
