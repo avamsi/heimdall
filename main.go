@@ -87,8 +87,9 @@ func (h Heimdall) Preexec(opts PreexecOpts) (string, error) {
 
 type PrecmdOpts struct {
 	Cmd         string
-	PreexecTime int64 // seconds from epoch
-	Code        int32 // return code of the command
+	PreexecTime int64  // seconds from epoch
+	Code        int32  // return code of the command
+	ID          string // id returned by preexec
 }
 
 func (h Heimdall) Precmd(opts PrecmdOpts) error {
@@ -97,6 +98,7 @@ func (h Heimdall) Precmd(opts PrecmdOpts) error {
 		Command: &bpb.Command{
 			Command:     opts.Cmd,
 			PreexecTime: timestamppb.New(time.UnixMilli(1000 * opts.PreexecTime)),
+			Id:          opts.ID,
 		},
 		ReturnCode:  opts.Code,
 		ForceNotify: ergo.Must1(c.EnvAsBool("HEIMDALL_FORCE_NOTIFY")),
