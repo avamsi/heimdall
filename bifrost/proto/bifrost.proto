@@ -1,0 +1,48 @@
+// $ protoc --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_opt=paths=source_relative bifrost/proto/bifrost.proto
+
+syntax = "proto3";
+
+option go_package = "github.com/avamsi/heimdall/bifrost/proto";
+
+import "google/protobuf/timestamp.proto";
+
+service Bifrost {
+    rpc Preexec (PreexecRequest) returns (PreexecResponse) {}
+    rpc Precmd (PrecmdRequest) returns (PrecmdResponse) {}
+    rpc ListCommands (ListCommandsRequest) returns (ListCommandsResponse) {}
+}
+
+message Command {
+    string command = 1;
+    google.protobuf.Timestamp preexec_time = 2;
+    // Empty for "new" commands.
+    string id = 3;
+}
+
+// rpc Preexec
+
+message PreexecRequest {
+	Command command = 1;
+}
+
+message PreexecResponse {
+    string id = 1;
+}
+
+// rpc Precmd
+
+message PrecmdRequest {
+	Command command = 1;
+    int32 return_code = 2;
+    bool force_notify = 3;
+}
+
+message PrecmdResponse {}
+
+// rpc ListCommands
+
+message ListCommandsRequest {}
+
+message ListCommandsResponse {
+    repeated Command commands = 1;
+}

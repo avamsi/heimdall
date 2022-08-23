@@ -3,9 +3,11 @@ module github.com/avamsi/heimdall
 go 1.18
 
 require (
-	github.com/avamsi/eclipse v0.0.0-20220806060821-ae1d885157ff
+	github.com/avamsi/eclipse v0.0.0-20220821130156-3160502d58d7
 	github.com/avamsi/ergo v0.0.0-20220806062525-33d2340c8ef4
 	github.com/fsnotify/fsnotify v1.5.4
+	github.com/rs/xid v1.4.0
+	golang.org/x/exp v0.0.0-20220722155223-a9213eeb770e
 	golang.org/x/term v0.0.0-20220722155259-a9ba230a4035
 	google.golang.org/api v0.91.0
 )
@@ -38,8 +40,8 @@ require (
 	golang.org/x/text v0.3.7 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
 	google.golang.org/genproto v0.0.0-20220805133916-01dd62135a58 // indirect
-	google.golang.org/grpc v1.48.0 // indirect
-	google.golang.org/protobuf v1.28.1 // indirect
+	google.golang.org/grpc v1.48.0
+	google.golang.org/protobuf v1.28.1
 	gopkg.in/ini.v1 v1.66.6 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
