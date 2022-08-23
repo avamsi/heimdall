@@ -82,7 +82,7 @@ func (h Heimdall) Preexec(opts PreexecOpts) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return resp.GetId(), err
+	return resp.GetId(), nil
 }
 
 type PrecmdOpts struct {
@@ -93,15 +93,14 @@ type PrecmdOpts struct {
 
 func (h Heimdall) Precmd(opts PrecmdOpts) error {
 	c := ergo.Must1(config.Load(h.Config()))
-	_, err := bifrost.NewClient(c).Precmd(context.TODO(), &bpb.PrecmdRequest{
+	return ergo.Error1(bifrost.NewClient(c).Precmd(context.TODO(), &bpb.PrecmdRequest{
 		Command: &bpb.Command{
 			Command:     opts.Cmd,
 			PreexecTime: timestamppb.New(time.UnixMilli(1000 * opts.PreexecTime)),
 		},
 		ReturnCode:  opts.Code,
 		ForceNotify: ergo.Must1(c.EnvAsBool("HEIMDALL_FORCE_NOTIFY")),
-	})
-	return err
+	}))
 }
 
 func (h Heimdall) List() error {
