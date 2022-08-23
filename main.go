@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 	"time"
 
 	_ "embed"
@@ -98,7 +99,7 @@ func (h Heimdall) Precmd(opts PrecmdOpts) error {
 		Command: &bpb.Command{
 			Command:     opts.Cmd,
 			PreexecTime: timestamppb.New(time.UnixMilli(1000 * opts.PreexecTime)),
-			Id:          opts.ID,
+			Id:          strings.TrimSpace(opts.ID),
 		},
 		ReturnCode:  opts.Code,
 		ForceNotify: ergo.Must1(c.EnvAsBool("HEIMDALL_FORCE_NOTIFY")),

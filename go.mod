@@ -3,7 +3,7 @@ module github.com/avamsi/heimdall
 go 1.18
 
 require (
-	github.com/avamsi/eclipse v0.0.0-20220823174313-ff8e791d86e5
+	github.com/avamsi/eclipse v0.0.0-20220823185531-0080076f6387
 	github.com/avamsi/ergo v0.0.0-20220813110843-329213a43bfc
 	github.com/fsnotify/fsnotify v1.5.4
 	github.com/rs/xid v1.4.0
