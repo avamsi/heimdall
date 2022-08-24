@@ -31,9 +31,9 @@ func (c *Config) createFile() error {
 		return err
 	}
 	c.v.Set("bifrost.port", 54351)
-	c.v.Set("chat.webhook_url", string(url))
-	c.v.Set("commands.always_notify", []string{"_github_io_avamsi_heimdall_replace_me"})
-	c.v.Set("commands.never_notify", []string{"_github_io_avamsi_heimdall_replace_me"})
+	c.v.Set("chat.webhook-url", string(url))
+	c.v.Set("commands.always-notify", []string{"githubioavamsiheimdallreplaceme"})
+	c.v.Set("commands.never-notify", []string{"githubioavamsiheimdallreplaceme"})
 	return c.v.SafeWriteConfig()
 }
 
@@ -91,7 +91,7 @@ func (c *Config) BifrostPort() int {
 
 func (c *Config) ChatOptions() (apiKey, token, spaceID string, err error) {
 	defer ergo.Annotate(&err, "failed to parse chat webhook URL")
-	raw := c.v.GetString("chat.webhook_url")
+	raw := c.v.GetString("chat.webhook-url")
 	parsed, err := url.Parse(raw)
 	if err != nil {
 		return "", "", "", err
@@ -104,9 +104,9 @@ func (c *Config) ChatOptions() (apiKey, token, spaceID string, err error) {
 }
 
 func (c *Config) AlwaysNotifyCommands() []string {
-	return c.v.GetStringSlice("commands.always")
+	return c.v.GetStringSlice("commands.always-notify")
 }
 
 func (c *Config) NeverNotifyCommands() []string {
-	return c.v.GetStringSlice("commands.never")
+	return c.v.GetStringSlice("commands.never-notify")
 }

@@ -85,7 +85,7 @@ func (b *bifrost) precmdAsync(todo context.Context, req *pb.PrecmdRequest) {
 	if !alwaysNotify && (neverNotify || d < 42*time.Second) {
 		return
 	}
-	msg := fmt.Sprintf("```\n$ %s\n[%s]: %d; %s\n```", cmd.GetCommand(), t.Format(time.Kitchen), req.GetReturnCode(), d)
+	msg := fmt.Sprintf("```\n$ %s\n[%s + %s] -> %d\n```", cmd.GetCommand(), t.Format(time.Kitchen), d, req.GetReturnCode())
 	b.sync.Lock()
 	err := b.sync.notifier.Notify(msg)
 	b.sync.Unlock()
