@@ -40,8 +40,8 @@ func (c *Config) createFile() error {
 func (c *Config) loadOrCreateFile() (err error) {
 	defer func() {
 		if err == nil {
-			if err = c.validate(); err != nil {
-				// TODO: WatchConfig?
+			if err = c.validate(); err == nil {
+				c.v.WatchConfig()
 			}
 		}
 	}()
