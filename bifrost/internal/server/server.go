@@ -80,12 +80,12 @@ func (b *bifrost) precmdAsync(todo context.Context, req *pb.PrecmdRequest) {
 	// notified for it (unless the user requested to always be notified for it).
 	alwaysNotify := anyOf(b.config.AlwaysNotifyCommands(), isPrefixOfCmd)
 	neverNotify := anyOf(b.config.NeverNotifyCommands(), isPrefixOfCmd)
-	t := cmd.GetPreexecTime().AsTime()
-	d := time.Since(t)
+	t := cmd.GetPreexecTime().AsTime().Local()
+	d := time.Since(t).Round(time.Second)
 	if !alwaysNotify && (neverNotify || d < 42*time.Second) {
 		return
 	}
-	msg := fmt.Sprintf("[%s] `$ %s` -> %d in %s", t.Format(time.Kitchen), cmd.GetCommand(), req.GetReturnCode(), d)
+	msg := fmt.Sprintf("```\n$ %s\n[%s]: %d; %s\n```", cmd.GetCommand(), t.Format(time.Kitchen), req.GetReturnCode(), d)
 	b.sync.Lock()
 	err := b.sync.notifier.Notify(msg)
 	b.sync.Unlock()
