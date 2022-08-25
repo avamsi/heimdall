@@ -56,8 +56,8 @@ func (b *bifrost) preexecAsync(req *pb.PreexecRequest, id string) {
 	cmd := req.GetCommand()
 	cmd.Id = id
 	b.sync.Lock()
+	defer b.sync.Unlock()
 	b.sync.cmds[id] = command{cmd, make(chan struct{})}
-	b.sync.Unlock()
 }
 
 func (b *bifrost) Preexec(todo context.Context, req *pb.PreexecRequest) (*pb.PreexecResponse, error) {
@@ -69,12 +69,12 @@ func (b *bifrost) Preexec(todo context.Context, req *pb.PreexecRequest) (*pb.Pre
 func (b *bifrost) precmdAsync(req *pb.PrecmdRequest) {
 	defer func() {
 		b.sync.Lock()
+		defer b.sync.Unlock()
 		if cmd, ok := b.sync.cmds[req.GetCommand().GetId()]; ok {
-			cmd.done <- struct{}{}
+			// This unblocks any goroutines waiting in WaitForCommand below.
 			close(cmd.done)
 			delete(b.sync.cmds, cmd.GetId())
 		}
-		b.sync.Unlock()
 	}()
 	// Don't notify if the command was interrupted by the user.
 	if req.GetReturnCode() == 130 {
@@ -118,7 +118,7 @@ func (b *bifrost) ListCommands(todo context.Context, _ *pb.ListCommandsRequest) 
 	return &pb.ListCommandsResponse{Commands: cmds}, nil
 }
 
-func (b *bifrost) WaitForCommand(todo context.Context, req *pb.WaitForCommandRequest) (*pb.WaitForCommandResponse, error) {
+func (b *bifrost) WaitForCommand(ctx context.Context, req *pb.WaitForCommandRequest) (*pb.WaitForCommandResponse, error) {
 	b.sync.Lock()
 	var done chan struct{}
 	if cmd, ok := b.sync.cmds[req.GetId()]; ok {
@@ -126,7 +126,11 @@ func (b *bifrost) WaitForCommand(todo context.Context, req *pb.WaitForCommandReq
 	}
 	b.sync.Unlock()
 	if done != nil {
-		<-done
+		select {
+		// Block till this command is done running (i.e., next Precmd call).
+		case <-done:
+		case <-ctx.Done():
+		}
 	}
 	return &pb.WaitForCommandResponse{}, nil
 }
@@ -159,5 +163,5 @@ func New(c Config, notifier Notifier) *server {
 	b.sync.cmds = map[string]command{}
 	gs := grpc.NewServer()
 	pb.RegisterBifrostServer(gs, b)
-	return &server{fmt.Sprintf(":%d", c.BifrostPort()), gs}
+	return &server{fmt.Sprintf("localhost:%d", c.BifrostPort()), gs}
 }
