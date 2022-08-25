@@ -7,7 +7,6 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
-	"time"
 
 	_ "embed"
 
@@ -77,7 +76,7 @@ func (h Heimdall) Preexec(opts PreexecOpts) (string, error) {
 	resp, err := bifrost.NewClient(c).Preexec(context.TODO(), &bpb.PreexecRequest{
 		Command: &bpb.Command{
 			Command:     opts.Cmd,
-			PreexecTime: timestamppb.New(time.UnixMilli(1000 * opts.Time)),
+			PreexecTime: &timestamppb.Timestamp{Seconds: opts.Time},
 		},
 	})
 	if err != nil {
@@ -98,7 +97,7 @@ func (h Heimdall) Precmd(opts PrecmdOpts) error {
 	return ergo.Error1(bifrost.NewClient(c).Precmd(context.TODO(), &bpb.PrecmdRequest{
 		Command: &bpb.Command{
 			Command:     opts.Cmd,
-			PreexecTime: timestamppb.New(time.UnixMilli(1000 * opts.PreexecTime)),
+			PreexecTime: &timestamppb.Timestamp{Seconds: opts.PreexecTime},
 			Id:          strings.TrimSpace(opts.ID),
 		},
 		ReturnCode:  opts.Code,
