@@ -25,6 +25,7 @@ type BifrostClient interface {
 	Preexec(ctx context.Context, in *PreexecRequest, opts ...grpc.CallOption) (*PreexecResponse, error)
 	Precmd(ctx context.Context, in *PrecmdRequest, opts ...grpc.CallOption) (*PrecmdResponse, error)
 	ListCommands(ctx context.Context, in *ListCommandsRequest, opts ...grpc.CallOption) (*ListCommandsResponse, error)
+	WaitForCommand(ctx context.Context, in *WaitForCommandRequest, opts ...grpc.CallOption) (*WaitForCommandResponse, error)
 }
 
 type bifrostClient struct {
@@ -62,6 +63,15 @@ func (c *bifrostClient) ListCommands(ctx context.Context, in *ListCommandsReques
 	return out, nil
 }
 
+func (c *bifrostClient) WaitForCommand(ctx context.Context, in *WaitForCommandRequest, opts ...grpc.CallOption) (*WaitForCommandResponse, error) {
+	out := new(WaitForCommandResponse)
+	err := c.cc.Invoke(ctx, "/Bifrost/WaitForCommand", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // BifrostServer is the server API for Bifrost service.
 // All implementations must embed UnimplementedBifrostServer
 // for forward compatibility
@@ -69,6 +79,7 @@ type BifrostServer interface {
 	Preexec(context.Context, *PreexecRequest) (*PreexecResponse, error)
 	Precmd(context.Context, *PrecmdRequest) (*PrecmdResponse, error)
 	ListCommands(context.Context, *ListCommandsRequest) (*ListCommandsResponse, error)
+	WaitForCommand(context.Context, *WaitForCommandRequest) (*WaitForCommandResponse, error)
 	mustEmbedUnimplementedBifrostServer()
 }
 
@@ -84,6 +95,9 @@ func (UnimplementedBifrostServer) Precmd(context.Context, *PrecmdRequest) (*Prec
 }
 func (UnimplementedBifrostServer) ListCommands(context.Context, *ListCommandsRequest) (*ListCommandsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ListCommands not implemented")
+}
+func (UnimplementedBifrostServer) WaitForCommand(context.Context, *WaitForCommandRequest) (*WaitForCommandResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method WaitForCommand not implemented")
 }
 func (UnimplementedBifrostServer) mustEmbedUnimplementedBifrostServer() {}
 
@@ -152,6 +166,24 @@ func _Bifrost_ListCommands_Handler(srv interface{}, ctx context.Context, dec fun
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Bifrost_WaitForCommand_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(WaitForCommandRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(BifrostServer).WaitForCommand(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/Bifrost/WaitForCommand",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(BifrostServer).WaitForCommand(ctx, req.(*WaitForCommandRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // Bifrost_ServiceDesc is the grpc.ServiceDesc for Bifrost service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -170,6 +202,10 @@ var Bifrost_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ListCommands",
 			Handler:    _Bifrost_ListCommands_Handler,
+		},
+		{
+			MethodName: "WaitForCommand",
+			Handler:    _Bifrost_WaitForCommand_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

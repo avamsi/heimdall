@@ -3,7 +3,6 @@ package bifrost
 import (
 	"fmt"
 
-	"github.com/avamsi/ergo"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
@@ -22,11 +21,14 @@ type Config interface {
 	NeverNotifyCommands() []string
 }
 
-func NewClient(c Config) pb.BifrostClient {
+func NewClient(c Config) (pb.BifrostClient, error) {
 	addr := fmt.Sprintf("localhost:%d", c.BifrostPort())
 	creds := grpc.WithTransportCredentials(insecure.NewCredentials())
-	conn := ergo.Must1(grpc.Dial(addr, creds))
-	return pb.NewBifrostClient(conn)
+	if conn, err := grpc.Dial(addr, creds); err != nil {
+		return nil, err
+	} else {
+		return pb.NewBifrostClient(conn), nil
+	}
 }
 
 type Service interface {
@@ -37,7 +39,14 @@ type Service interface {
 	Stop() error
 }
 
-func NewService(c Config) Service {
-	chat := ergo.Must1(notifiers.NewChat(ergo.Must3(c.ChatOptions())))
-	return ergo.Must1(service.New(server.New(c, chat), c.Dir()))
+func NewService(c Config) (Service, error) {
+	apiKey, token, spaceID, err := c.ChatOptions()
+	if err != nil {
+		return nil, err
+	}
+	if chat, err := notifiers.NewChat(apiKey, token, spaceID); err != nil {
+		return nil, err
+	} else {
+		return service.New(server.New(c, chat), c.Dir())
+	}
 }

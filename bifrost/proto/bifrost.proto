@@ -10,6 +10,7 @@ service Bifrost {
     rpc Preexec (PreexecRequest) returns (PreexecResponse) {}
     rpc Precmd (PrecmdRequest) returns (PrecmdResponse) {}
     rpc ListCommands (ListCommandsRequest) returns (ListCommandsResponse) {}
+    rpc WaitForCommand (WaitForCommandRequest) returns (WaitForCommandResponse) {}
 }
 
 message Command {
@@ -46,3 +47,11 @@ message ListCommandsRequest {}
 message ListCommandsResponse {
     repeated Command commands = 1;
 }
+
+// rpc WaitForCommand
+
+message WaitForCommandRequest {
+    string id = 1;
+}
+
+message WaitForCommandResponse {}

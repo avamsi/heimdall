@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/rs/xid"
-	"golang.org/x/exp/maps"
 	"google.golang.org/grpc"
 
 	"github.com/avamsi/ergo"
@@ -38,34 +37,43 @@ type Notifier interface {
 	Notify(msg string) (err error)
 }
 
+type command struct {
+	*pb.Command
+	done chan struct{}
+}
+
 type bifrost struct {
 	pb.UnimplementedBifrostServer
 	config Config
 	sync   struct {
 		sync.Mutex
 		notifier Notifier
-		cmds     map[string]*pb.Command
+		cmds     map[string]command
 	}
 }
 
-func (b *bifrost) preexecAsync(todo context.Context, req *pb.PreexecRequest, id string) {
+func (b *bifrost) preexecAsync(req *pb.PreexecRequest, id string) {
 	cmd := req.GetCommand()
 	cmd.Id = id
 	b.sync.Lock()
-	b.sync.cmds[id] = cmd
+	b.sync.cmds[id] = command{cmd, make(chan struct{})}
 	b.sync.Unlock()
 }
 
 func (b *bifrost) Preexec(todo context.Context, req *pb.PreexecRequest) (*pb.PreexecResponse, error) {
 	id := xid.New().String()
-	go b.preexecAsync(todo, req, id)
+	go b.preexecAsync(req, id)
 	return &pb.PreexecResponse{Id: id}, nil
 }
 
-func (b *bifrost) precmdAsync(todo context.Context, req *pb.PrecmdRequest) {
+func (b *bifrost) precmdAsync(req *pb.PrecmdRequest) {
 	defer func() {
 		b.sync.Lock()
-		delete(b.sync.cmds, req.Command.GetId())
+		if cmd, ok := b.sync.cmds[req.GetCommand().GetId()]; ok {
+			cmd.done <- struct{}{}
+			close(cmd.done)
+			delete(b.sync.cmds, cmd.GetId())
+		}
 		b.sync.Unlock()
 	}()
 	// Don't notify if the command was interrupted by the user.
@@ -96,14 +104,31 @@ func (b *bifrost) precmdAsync(todo context.Context, req *pb.PrecmdRequest) {
 }
 
 func (b *bifrost) Precmd(todo context.Context, req *pb.PrecmdRequest) (*pb.PrecmdResponse, error) {
-	go b.precmdAsync(todo, req)
+	go b.precmdAsync(req)
 	return &pb.PrecmdResponse{}, nil
 }
 
 func (b *bifrost) ListCommands(todo context.Context, _ *pb.ListCommandsRequest) (*pb.ListCommandsResponse, error) {
 	b.sync.Lock()
 	defer b.sync.Unlock()
-	return &pb.ListCommandsResponse{Commands: maps.Values(b.sync.cmds)}, nil
+	cmds := []*pb.Command{}
+	for _, cmd := range b.sync.cmds {
+		cmds = append(cmds, cmd.Command)
+	}
+	return &pb.ListCommandsResponse{Commands: cmds}, nil
+}
+
+func (b *bifrost) WaitForCommand(todo context.Context, req *pb.WaitForCommandRequest) (*pb.WaitForCommandResponse, error) {
+	b.sync.Lock()
+	var done chan struct{}
+	if cmd, ok := b.sync.cmds[req.GetId()]; ok {
+		done = cmd.done
+	}
+	b.sync.Unlock()
+	if done != nil {
+		<-done
+	}
+	return &pb.WaitForCommandResponse{}, nil
 }
 
 type server struct {
@@ -131,7 +156,7 @@ func (s *server) Stop() {
 func New(c Config, notifier Notifier) *server {
 	b := &bifrost{config: c}
 	b.sync.notifier = notifier
-	b.sync.cmds = map[string]*pb.Command{}
+	b.sync.cmds = map[string]command{}
 	gs := grpc.NewServer()
 	pb.RegisterBifrostServer(gs, b)
 	return &server{fmt.Sprintf(":%d", c.BifrostPort()), gs}
