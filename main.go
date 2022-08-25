@@ -79,7 +79,7 @@ type PreexecOpts struct {
 
 func (h Heimdall) Preexec(opts PreexecOpts) string {
 	client := ergo.Must1(bifrost.NewClient(h.config()))
-	return ergo.Must1(client.Preexec(context.TODO(), &bpb.PreexecRequest{
+	return ergo.Must1(client.Preexec(context.Background(), &bpb.PreexecRequest{
 		Command: &bpb.Command{
 			Command:     opts.Cmd,
 			PreexecTime: &timestamppb.Timestamp{Seconds: opts.Time},
@@ -97,7 +97,7 @@ type PrecmdOpts struct {
 func (h Heimdall) Precmd(opts PrecmdOpts) error {
 	c := h.config()
 	client := ergo.Must1(bifrost.NewClient(c))
-	return ergo.Error1(client.Precmd(context.TODO(), &bpb.PrecmdRequest{
+	return ergo.Error1(client.Precmd(context.Background(), &bpb.PrecmdRequest{
 		Command: &bpb.Command{
 			Command:     opts.Cmd,
 			PreexecTime: &timestamppb.Timestamp{Seconds: opts.PreexecTime},
@@ -108,10 +108,10 @@ func (h Heimdall) Precmd(opts PrecmdOpts) error {
 	}))
 }
 
-func (h Heimdall) list() []*bpb.Command {
+func (h Heimdall) list(ctx context.Context) []*bpb.Command {
 	// TODO: filter out the current command from this list.
 	client := ergo.Must1(bifrost.NewClient(h.config()))
-	resp := ergo.Must1(client.ListCommands(context.TODO(), &bpb.ListCommandsRequest{}))
+	resp := ergo.Must1(client.ListCommands(ctx, &bpb.ListCommandsRequest{}))
 	cmds := resp.GetCommands()
 	sort.Slice(cmds, func(i, j int) bool {
 		return cmds[i].GetPreexecTime().AsTime().Before(cmds[j].GetPreexecTime().AsTime())
@@ -120,7 +120,7 @@ func (h Heimdall) list() []*bpb.Command {
 }
 
 func (h Heimdall) List() error {
-	for _, cmd := range h.list() {
+	for _, cmd := range h.list(context.Background()) {
 		t := cmd.GetPreexecTime().AsTime().Local()
 		fmt.Printf("[%s: %s] $ %s\n", t.Format(time.Kitchen), cmd.GetId(), cmd.GetCommand())
 	}
@@ -129,7 +129,7 @@ func (h Heimdall) List() error {
 
 func (h Heimdall) chooseFromList() (id string, err error) {
 	choices := []*selection.Choice{}
-	for _, cmd := range h.list() {
+	for _, cmd := range h.list(context.Background()) {
 		t := cmd.GetPreexecTime().AsTime().Local()
 		s := fmt.Sprintf("[%s] $ %s", t.Format(time.Kitchen), cmd.GetCommand())
 		choices = append(choices, &selection.Choice{String: s, Value: cmd})
@@ -155,7 +155,7 @@ func (h Heimdall) Wait(opts WaitOpts) {
 		}
 	}
 	client := ergo.Must1(bifrost.NewClient(h.config()))
-	ergo.Must1(client.WaitForCommand(context.TODO(), &bpb.WaitForCommandRequest{
+	ergo.Must1(client.WaitForCommand(context.Background(), &bpb.WaitForCommandRequest{
 		Id: strings.TrimSpace(opts.ID),
 	}))
 }

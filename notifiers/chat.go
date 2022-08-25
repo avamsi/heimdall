@@ -16,10 +16,10 @@ type Chat struct {
 	spaceID string
 }
 
-func (c *Chat) Notify(msg string) (err error) {
+func (c *Chat) Notify(ctx context.Context, msg string) (err error) {
 	defer ergo.Annotate(&err, "failed to notify on chat")
 	call := c.service.Spaces.Messages.Create("spaces/"+c.spaceID, &chat.Message{Text: msg})
-	return ergo.Error1(call.Context(context.TODO()).Do(c.token))
+	return ergo.Error1(call.Context(ctx).Do(c.token))
 }
 
 type simpleCallOption struct {

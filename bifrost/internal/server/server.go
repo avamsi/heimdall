@@ -34,7 +34,7 @@ type Config interface {
 }
 
 type Notifier interface {
-	Notify(msg string) (err error)
+	Notify(ctx context.Context, msg string) (err error)
 }
 
 type command struct {
@@ -95,7 +95,7 @@ func (b *bifrost) precmdAsync(req *pb.PrecmdRequest) {
 	}
 	msg := fmt.Sprintf("```[%s + %s] $ %s -> %d```", t.Format(time.Kitchen), d, cmd.GetCommand(), req.GetReturnCode())
 	b.sync.Lock()
-	err := b.sync.notifier.Notify(msg)
+	err := b.sync.notifier.Notify(context.TODO(), msg)
 	b.sync.Unlock()
 	if err != nil {
 		log.Println(err)
