@@ -11,6 +11,7 @@ service Bifrost {
     rpc Precmd (PrecmdRequest) returns (PrecmdResponse) {}
     rpc ListCommands (ListCommandsRequest) returns (ListCommandsResponse) {}
     rpc WaitForCommand (WaitForCommandRequest) returns (WaitForCommandResponse) {}
+    rpc CacheCommand (CacheCommandRequest) returns (CacheCommandResponse) {}
 }
 
 message Command {
@@ -55,3 +56,17 @@ message WaitForCommandRequest {
 }
 
 message WaitForCommandResponse {}
+
+// rpc CacheCommand
+
+message CacheCommandRequest {
+    string command = 1;
+    repeated string args = 2;
+    int32 ttl = 3;
+}
+
+message CacheCommandResponse {
+    int32 return_code = 1;
+    string stdout = 2;
+    string stderr = 3;
+}

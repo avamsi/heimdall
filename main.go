@@ -151,6 +151,7 @@ func (h Heimdall) Wait(opts WaitOpts) {
 	if opts.ID == "" {
 		var err error
 		if opts.ID, err = h.chooseFromList(); err != nil {
+			// TODO: should we log something here?
 			return
 		}
 	}
@@ -158,6 +159,41 @@ func (h Heimdall) Wait(opts WaitOpts) {
 	ergo.Must1(client.WaitForCommand(context.Background(), &bpb.WaitForCommandRequest{
 		Id: strings.TrimSpace(opts.ID),
 	}))
+}
+
+type CacheOpts struct {
+	// (rough) ttl (in seconds) of the cached results
+	TTL int32 `default:"420"`
+}
+
+// Cache runs and caches the command's stdout, stderr and return code for ttl
+// seconds (before rerunning it in the background).
+//
+// It doesn't work with compound commands or shell aliases. Consider wrapping
+// the command with your favorite shell in that case. For example,
+//
+//	$ heimdall cache zsh -ic 'echo hello && echo world'
+//
+// Usage: cache command [args]
+func (h Heimdall) Cache(opts CacheOpts, args []string) {
+	// TODO: this doesn't work with shell aliases or compound commands.
+	if len(args) == 0 {
+		fmt.Fprintln(os.Stderr, "please pass a command to be cached / run --help")
+		os.Exit(1)
+	}
+	client := ergo.Must1(bifrost.NewClient(h.config()))
+	resp := ergo.Must1(client.CacheCommand(context.Background(), &bpb.CacheCommandRequest{
+		Command: args[0],
+		Args:    args[1:],
+		Ttl:     opts.TTL,
+	}))
+	if resp.GetStdout() != "" {
+		fmt.Println(resp.GetStdout())
+	}
+	if resp.GetStderr() != "" {
+		fmt.Fprintln(os.Stderr, resp.GetStderr())
+	}
+	os.Exit(int(resp.ReturnCode))
 }
 
 //go:generate eclipse docs --out=eclipse.docs

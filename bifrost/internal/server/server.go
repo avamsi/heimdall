@@ -2,8 +2,10 @@ package server
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
+	"math"
 	"net"
 	"os/exec"
 	"strings"
@@ -37,27 +39,40 @@ type Notifier interface {
 	Notify(ctx context.Context, msg string) (err error)
 }
 
+type nothing struct{}
+
 type command struct {
 	*pb.Command
-	done chan struct{}
+	done chan nothing
+}
+
+type syncCachedCommand struct {
+	sync.Mutex
+	r   *pb.CacheCommandResponse
+	err error
 }
 
 type bifrost struct {
 	pb.UnimplementedBifrostServer
-	config Config
-	sync   struct {
+	config   Config
+	notifier Notifier
+	msgs     chan string
+	syncCmds struct {
 		sync.Mutex
-		notifier Notifier
-		cmds     map[string]command
+		m map[string]command // string is the ID returned by Preexec
+	}
+	syncCmdsCache struct {
+		sync.Mutex
+		m map[string]*syncCachedCommand // string is the full command
 	}
 }
 
 func (b *bifrost) preexecAsync(req *pb.PreexecRequest, id string) {
 	cmd := req.GetCommand()
 	cmd.Id = id
-	b.sync.Lock()
-	defer b.sync.Unlock()
-	b.sync.cmds[id] = command{cmd, make(chan struct{})}
+	b.syncCmds.Lock()
+	defer b.syncCmds.Unlock()
+	b.syncCmds.m[id] = command{cmd, make(chan nothing)}
 }
 
 func (b *bifrost) Preexec(todo context.Context, req *pb.PreexecRequest) (*pb.PreexecResponse, error) {
@@ -68,12 +83,12 @@ func (b *bifrost) Preexec(todo context.Context, req *pb.PreexecRequest) (*pb.Pre
 
 func (b *bifrost) precmdAsync(req *pb.PrecmdRequest) {
 	defer func() {
-		b.sync.Lock()
-		defer b.sync.Unlock()
-		if cmd, ok := b.sync.cmds[req.GetCommand().GetId()]; ok {
+		b.syncCmds.Lock()
+		defer b.syncCmds.Unlock()
+		if cmd, ok := b.syncCmds.m[req.GetCommand().GetId()]; ok {
 			// This unblocks any goroutines waiting in WaitForCommand below.
 			close(cmd.done)
-			delete(b.sync.cmds, cmd.GetId())
+			delete(b.syncCmds.m, cmd.GetId())
 		}
 	}()
 	// Don't notify if the command was interrupted by the user.
@@ -93,14 +108,7 @@ func (b *bifrost) precmdAsync(req *pb.PrecmdRequest) {
 	if !alwaysNotify && (neverNotify || d < 42*time.Second) {
 		return
 	}
-	msg := fmt.Sprintf("```[%s + %s] $ %s -> %d```", t.Format(time.Kitchen), d, cmd.GetCommand(), req.GetReturnCode())
-	b.sync.Lock()
-	err := b.sync.notifier.Notify(context.TODO(), msg)
-	b.sync.Unlock()
-	if err != nil {
-		log.Println(err)
-		ergo.Must0(exec.Command("tput", "bel").Run())
-	}
+	b.msgs <- fmt.Sprintf("```[%s + %s] $ %s -> %d```", t.Format(time.Kitchen), d, cmd.GetCommand(), req.GetReturnCode())
 }
 
 func (b *bifrost) Precmd(todo context.Context, req *pb.PrecmdRequest) (*pb.PrecmdResponse, error) {
@@ -109,25 +117,25 @@ func (b *bifrost) Precmd(todo context.Context, req *pb.PrecmdRequest) (*pb.Precm
 }
 
 func (b *bifrost) ListCommands(todo context.Context, _ *pb.ListCommandsRequest) (*pb.ListCommandsResponse, error) {
-	b.sync.Lock()
-	defer b.sync.Unlock()
+	b.syncCmds.Lock()
+	defer b.syncCmds.Unlock()
 	cmds := []*pb.Command{}
-	for _, cmd := range b.sync.cmds {
+	for _, cmd := range b.syncCmds.m {
 		cmds = append(cmds, cmd.Command)
 	}
 	return &pb.ListCommandsResponse{Commands: cmds}, nil
 }
 
 func (b *bifrost) WaitForCommand(ctx context.Context, req *pb.WaitForCommandRequest) (*pb.WaitForCommandResponse, error) {
-	b.sync.Lock()
-	var done chan struct{}
-	if cmd, ok := b.sync.cmds[req.GetId()]; ok {
+	b.syncCmds.Lock()
+	var done chan nothing
+	if cmd, ok := b.syncCmds.m[req.GetId()]; ok {
 		done = cmd.done
 	}
-	b.sync.Unlock()
+	b.syncCmds.Unlock()
 	if done != nil {
 		select {
-		// Block till this command is done running (i.e., next Precmd call).
+		// Block till caller gives up or this command is done running (i.e., next Precmd call).
 		case <-done:
 		case <-ctx.Done():
 		}
@@ -135,13 +143,75 @@ func (b *bifrost) WaitForCommand(ctx context.Context, req *pb.WaitForCommandRequ
 	return &pb.WaitForCommandResponse{}, nil
 }
 
+func runCommand(req *pb.CacheCommandRequest) (*pb.CacheCommandResponse, error) {
+	out, err := exec.Command(req.GetCommand(), req.GetArgs()...).Output()
+	resp := &pb.CacheCommandResponse{Stdout: string(out)}
+	exitErr := &exec.ExitError{}
+	if err != nil && errors.As(err, &exitErr) {
+		err = nil
+		resp.Stderr = string(exitErr.Stderr)
+		resp.ReturnCode = int32(exitErr.ExitCode())
+	}
+	return resp, err
+}
+
+func (b *bifrost) cacheCommandAsync(req *pb.CacheCommandRequest) {
+	for {
+		time.Sleep(time.Duration(math.Max(4.2, float64(req.GetTtl()))) * time.Second)
+		resp, err := runCommand(req)
+		cmd := exec.Command(req.GetCommand(), req.GetArgs()...).String()
+		b.syncCmdsCache.Lock()
+		syncCachedCmd, ok := b.syncCmdsCache.m[cmd]
+		if !ok {
+			b.syncCmdsCache.Unlock()
+			return
+		}
+		syncCachedCmd.Lock()
+		b.syncCmdsCache.Unlock()
+		syncCachedCmd.r, syncCachedCmd.err = resp, err
+		syncCachedCmd.Unlock()
+	}
+}
+
+func (b *bifrost) CacheCommand(todo context.Context, req *pb.CacheCommandRequest) (*pb.CacheCommandResponse, error) {
+	cmd := exec.Command(req.GetCommand(), req.GetArgs()...).String()
+	b.syncCmdsCache.Lock()
+	syncCachedCmd, ok := b.syncCmdsCache.m[cmd]
+	if !ok {
+		syncCachedCmd = &syncCachedCommand{}
+	}
+	b.syncCmdsCache.m[cmd] = syncCachedCmd
+	syncCachedCmd.Lock()
+	b.syncCmdsCache.Unlock()
+	defer syncCachedCmd.Unlock()
+	if !ok {
+		syncCachedCmd.r, syncCachedCmd.err = runCommand(req)
+		go b.cacheCommandAsync(req)
+	}
+	return syncCachedCmd.r, syncCachedCmd.err
+}
+
 type server struct {
 	addr string
+	b    *bifrost
 	gs   *grpc.Server
 }
 
 func (s *server) Addr() string {
 	return s.addr
+}
+
+func (s *server) notify() {
+	for {
+		msg, ok := <-s.b.msgs
+		if !ok {
+			return
+		}
+		if err := s.b.notifier.Notify(context.TODO(), msg); err != nil {
+			log.Println(err.Error())
+			ergo.Must0(exec.Command("tput", "bel").Run())
+		}
+	}
 }
 
 func (s *server) Start() (err error) {
@@ -150,6 +220,8 @@ func (s *server) Start() (err error) {
 	if err != nil {
 		return err
 	}
+	go s.notify()
+	defer close(s.b.msgs)
 	return s.gs.Serve(lis)
 }
 
@@ -158,10 +230,10 @@ func (s *server) Stop() {
 }
 
 func New(c Config, notifier Notifier) *server {
-	b := &bifrost{config: c}
-	b.sync.notifier = notifier
-	b.sync.cmds = map[string]command{}
+	b := &bifrost{config: c, notifier: notifier, msgs: make(chan string, 42)}
+	b.syncCmds.m = map[string]command{}
+	b.syncCmdsCache.m = map[string]*syncCachedCommand{}
 	gs := grpc.NewServer()
 	pb.RegisterBifrostServer(gs, b)
-	return &server{fmt.Sprintf("localhost:%d", c.BifrostPort()), gs}
+	return &server{addr: fmt.Sprintf("localhost:%d", c.BifrostPort()), b: b, gs: gs}
 }
