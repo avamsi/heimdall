@@ -117,7 +117,7 @@ func (b *bifrost) precmdAsync(req *pb.PrecmdRequest) {
 	}
 	ts := cmd.GetPreexecTime().AsTime().Local().Format(time.Kitchen)
 	ds := time.Since(t).Round(time.Second).String()
-	b.msgs <- fmt.Sprintf("```[%s + %s][%d] $ %s```", ts, ds, req.GetReturnCode(), cmd.GetCommand())
+	b.msgs <- fmt.Sprintf("```[%s + %s -> %d] $ %s```", ts, ds, req.GetReturnCode(), cmd.GetCommand())
 }
 
 func (b *bifrost) Precmd(todo context.Context, req *pb.PrecmdRequest) (*pb.PrecmdResponse, error) {
