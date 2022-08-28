@@ -20,9 +20,9 @@ import (
 	pb "github.com/avamsi/heimdall/bifrost/proto"
 )
 
-func anyOf[T any](slice []T, predicate func(T) bool) bool {
-	for _, i := range slice {
-		if predicate(i) {
+func anyOf[T any](s []T, pred func(T) bool) bool {
+	for _, i := range s {
+		if pred(i) {
 			return true
 		}
 	}
@@ -59,7 +59,7 @@ type bifrost struct {
 	msgs     chan string
 	syncCmds struct {
 		sync.Mutex
-		m map[string]command // string is the ID returned by Preexec
+		m map[string]command // string is the ID returned by CommandStart
 	}
 	syncCmdsCache struct {
 		sync.Mutex
@@ -67,7 +67,7 @@ type bifrost struct {
 	}
 }
 
-func (b *bifrost) preexecAsync(req *pb.PreexecRequest, id string) {
+func (b *bifrost) commandStartAsync(req *pb.CommandStartRequest, id string) {
 	cmd := req.GetCommand()
 	cmd.Id = id
 	b.syncCmds.Lock()
@@ -75,13 +75,13 @@ func (b *bifrost) preexecAsync(req *pb.PreexecRequest, id string) {
 	b.syncCmds.m[id] = command{cmd, make(chan nothing)}
 }
 
-func (b *bifrost) Preexec(todo context.Context, req *pb.PreexecRequest) (*pb.PreexecResponse, error) {
+func (b *bifrost) CommandStart(todo context.Context, req *pb.CommandStartRequest) (*pb.CommandStartResponse, error) {
 	id := xid.New().String()
-	go b.preexecAsync(req, id)
-	return &pb.PreexecResponse{Id: id}, nil
+	go b.commandStartAsync(req, id)
+	return &pb.CommandStartResponse{Id: id}, nil
 }
 
-func (b *bifrost) precmdAsync(req *pb.PrecmdRequest) {
+func (b *bifrost) commandEndAsync(req *pb.CommandEndRequest) {
 	defer func() {
 		b.syncCmds.Lock()
 		defer b.syncCmds.Unlock()
@@ -107,22 +107,23 @@ func (b *bifrost) precmdAsync(req *pb.PrecmdRequest) {
 	}
 	// Don't notify if the command ran or the user interacted with it (i.e.,
 	// the command accessed stdin) in the last 42 seconds.
-	t := cmd.GetPreexecTime().AsTime()
-	if i := req.GetLastInteractionTime().AsTime(); i.After(t) {
-		t = i
+	start := cmd.GetStartTime().AsTime().Local()
+	interaction := time.Since(start).Round(time.Second)
+	if i := req.GetLastInteractionTime().AsTime(); i.After(start) {
+		interaction = time.Since(start).Round(time.Second)
 	}
 	// TODO: this "42" should be configurable and not a magic number.
-	if time.Since(t).Round(time.Second) < 42*time.Second {
+	if interaction < 42*time.Second {
 		return
 	}
-	ts := cmd.GetPreexecTime().AsTime().Local().Format(time.Kitchen)
-	ds := time.Since(t).Round(time.Second).String()
+	ts := start.Format(time.Kitchen)
+	ds := time.Since(start).Round(time.Second).String()
 	b.msgs <- fmt.Sprintf("```[%s + %s -> %d] $ %s```", ts, ds, req.GetReturnCode(), cmd.GetCommand())
 }
 
-func (b *bifrost) Precmd(todo context.Context, req *pb.PrecmdRequest) (*pb.PrecmdResponse, error) {
-	go b.precmdAsync(req)
-	return &pb.PrecmdResponse{}, nil
+func (b *bifrost) CommandEnd(todo context.Context, req *pb.CommandEndRequest) (*pb.CommandEndResponse, error) {
+	go b.commandEndAsync(req)
+	return &pb.CommandEndResponse{}, nil
 }
 
 func (b *bifrost) ListCommands(todo context.Context, _ *pb.ListCommandsRequest) (*pb.ListCommandsResponse, error) {
@@ -144,7 +145,7 @@ func (b *bifrost) WaitForCommand(ctx context.Context, req *pb.WaitForCommandRequ
 	b.syncCmds.Unlock()
 	if done != nil {
 		select {
-		// Block till caller gives up or this command is done running (i.e., next Precmd call).
+		// Block till caller gives up or this command is done running (i.e., next CommandEnd call).
 		case <-done:
 		case <-ctx.Done():
 		}

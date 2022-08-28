@@ -3,15 +3,14 @@ module github.com/avamsi/heimdall
 go 1.18
 
 require (
-	github.com/avamsi/eclipse v0.2.2
+	github.com/avamsi/eclipse v0.2.3
 	github.com/avamsi/ergo v0.0.0-20220813110843-329213a43bfc
+	github.com/djherbis/atime v1.1.0
 	github.com/fsnotify/fsnotify v1.5.4
 	github.com/rs/xid v1.4.0
 	golang.org/x/term v0.0.0-20220722155259-a9ba230a4035
 	google.golang.org/api v0.94.0
 )
-
-require github.com/djherbis/atime v1.1.0
 
 require (
 	cloud.google.com/go/compute v1.9.0 // indirect

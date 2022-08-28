@@ -65,8 +65,8 @@ github.com/OneOfOne/xxhash v1.2.2/go.mod h1:HSdplMjZKSmBqAxg5vPj2TmRDmfkzw+cTzAE
 github.com/antihax/optional v1.0.0/go.mod h1:uupD/76wgC+ih3iEmQUL+0Ugr19nfwCT1kdvxnR2qWY=
 github.com/atotto/clipboard v0.1.4 h1:EH0zSVneZPSuFR11BlR9YppQTVDbh5+16AmcJi4g1z4=
 github.com/atotto/clipboard v0.1.4/go.mod h1:ZY9tmq7sm5xIbd9bOK4onWV4S6X0u6GY7Vn0Yu86PYI=
-github.com/avamsi/eclipse v0.2.2 h1:2gAARiVedHguQKIuP2WqkWkmm8Xi4wZGqNqpvB1OKEE=
-github.com/avamsi/eclipse v0.2.2/go.mod h1:3gvD8XjR8fvUlsQjIl4z6jeTRE0hAH7foayDlLNXWWo=
+github.com/avamsi/eclipse v0.2.3 h1:Q9OM3/eOMXclOvlnaWfVI6GWm1r0fexza7ZSSuBKApM=
+github.com/avamsi/eclipse v0.2.3/go.mod h1:3gvD8XjR8fvUlsQjIl4z6jeTRE0hAH7foayDlLNXWWo=
 github.com/avamsi/ergo v0.0.0-20220813110843-329213a43bfc h1:yijOcj7IpXEwHAuqcbC9Z50PrMaj/dv5ID8Qmes85ck=
 github.com/avamsi/ergo v0.0.0-20220813110843-329213a43bfc/go.mod h1:ptOtFkHOxyC8N1E/gRCBeqwdDZ6nv4j5jt5faOOJLLY=
 github.com/census-instrumentation/opencensus-proto v0.2.1/go.mod h1:f6KPmirojxKA12rnyqOA5BBL4O983OfeGPqjHWSTneU=

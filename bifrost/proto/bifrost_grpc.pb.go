@@ -22,8 +22,8 @@ const _ = grpc.SupportPackageIsVersion7
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type BifrostClient interface {
-	Preexec(ctx context.Context, in *PreexecRequest, opts ...grpc.CallOption) (*PreexecResponse, error)
-	Precmd(ctx context.Context, in *PrecmdRequest, opts ...grpc.CallOption) (*PrecmdResponse, error)
+	CommandStart(ctx context.Context, in *CommandStartRequest, opts ...grpc.CallOption) (*CommandStartResponse, error)
+	CommandEnd(ctx context.Context, in *CommandEndRequest, opts ...grpc.CallOption) (*CommandEndResponse, error)
 	ListCommands(ctx context.Context, in *ListCommandsRequest, opts ...grpc.CallOption) (*ListCommandsResponse, error)
 	WaitForCommand(ctx context.Context, in *WaitForCommandRequest, opts ...grpc.CallOption) (*WaitForCommandResponse, error)
 	CacheCommand(ctx context.Context, in *CacheCommandRequest, opts ...grpc.CallOption) (*CacheCommandResponse, error)
@@ -37,18 +37,18 @@ func NewBifrostClient(cc grpc.ClientConnInterface) BifrostClient {
 	return &bifrostClient{cc}
 }
 
-func (c *bifrostClient) Preexec(ctx context.Context, in *PreexecRequest, opts ...grpc.CallOption) (*PreexecResponse, error) {
-	out := new(PreexecResponse)
-	err := c.cc.Invoke(ctx, "/Bifrost/Preexec", in, out, opts...)
+func (c *bifrostClient) CommandStart(ctx context.Context, in *CommandStartRequest, opts ...grpc.CallOption) (*CommandStartResponse, error) {
+	out := new(CommandStartResponse)
+	err := c.cc.Invoke(ctx, "/Bifrost/CommandStart", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *bifrostClient) Precmd(ctx context.Context, in *PrecmdRequest, opts ...grpc.CallOption) (*PrecmdResponse, error) {
-	out := new(PrecmdResponse)
-	err := c.cc.Invoke(ctx, "/Bifrost/Precmd", in, out, opts...)
+func (c *bifrostClient) CommandEnd(ctx context.Context, in *CommandEndRequest, opts ...grpc.CallOption) (*CommandEndResponse, error) {
+	out := new(CommandEndResponse)
+	err := c.cc.Invoke(ctx, "/Bifrost/CommandEnd", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -86,8 +86,8 @@ func (c *bifrostClient) CacheCommand(ctx context.Context, in *CacheCommandReques
 // All implementations must embed UnimplementedBifrostServer
 // for forward compatibility
 type BifrostServer interface {
-	Preexec(context.Context, *PreexecRequest) (*PreexecResponse, error)
-	Precmd(context.Context, *PrecmdRequest) (*PrecmdResponse, error)
+	CommandStart(context.Context, *CommandStartRequest) (*CommandStartResponse, error)
+	CommandEnd(context.Context, *CommandEndRequest) (*CommandEndResponse, error)
 	ListCommands(context.Context, *ListCommandsRequest) (*ListCommandsResponse, error)
 	WaitForCommand(context.Context, *WaitForCommandRequest) (*WaitForCommandResponse, error)
 	CacheCommand(context.Context, *CacheCommandRequest) (*CacheCommandResponse, error)
@@ -98,11 +98,11 @@ type BifrostServer interface {
 type UnimplementedBifrostServer struct {
 }
 
-func (UnimplementedBifrostServer) Preexec(context.Context, *PreexecRequest) (*PreexecResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method Preexec not implemented")
+func (UnimplementedBifrostServer) CommandStart(context.Context, *CommandStartRequest) (*CommandStartResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CommandStart not implemented")
 }
-func (UnimplementedBifrostServer) Precmd(context.Context, *PrecmdRequest) (*PrecmdResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method Precmd not implemented")
+func (UnimplementedBifrostServer) CommandEnd(context.Context, *CommandEndRequest) (*CommandEndResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CommandEnd not implemented")
 }
 func (UnimplementedBifrostServer) ListCommands(context.Context, *ListCommandsRequest) (*ListCommandsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ListCommands not implemented")
@@ -126,38 +126,38 @@ func RegisterBifrostServer(s grpc.ServiceRegistrar, srv BifrostServer) {
 	s.RegisterService(&Bifrost_ServiceDesc, srv)
 }
 
-func _Bifrost_Preexec_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(PreexecRequest)
+func _Bifrost_CommandStart_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CommandStartRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(BifrostServer).Preexec(ctx, in)
+		return srv.(BifrostServer).CommandStart(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/Bifrost/Preexec",
+		FullMethod: "/Bifrost/CommandStart",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(BifrostServer).Preexec(ctx, req.(*PreexecRequest))
+		return srv.(BifrostServer).CommandStart(ctx, req.(*CommandStartRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Bifrost_Precmd_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(PrecmdRequest)
+func _Bifrost_CommandEnd_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CommandEndRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(BifrostServer).Precmd(ctx, in)
+		return srv.(BifrostServer).CommandEnd(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/Bifrost/Precmd",
+		FullMethod: "/Bifrost/CommandEnd",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(BifrostServer).Precmd(ctx, req.(*PrecmdRequest))
+		return srv.(BifrostServer).CommandEnd(ctx, req.(*CommandEndRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -224,12 +224,12 @@ var Bifrost_ServiceDesc = grpc.ServiceDesc{
 	HandlerType: (*BifrostServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
-			MethodName: "Preexec",
-			Handler:    _Bifrost_Preexec_Handler,
+			MethodName: "CommandStart",
+			Handler:    _Bifrost_CommandStart_Handler,
 		},
 		{
-			MethodName: "Precmd",
-			Handler:    _Bifrost_Precmd_Handler,
+			MethodName: "CommandEnd",
+			Handler:    _Bifrost_CommandEnd_Handler,
 		},
 		{
 			MethodName: "ListCommands",

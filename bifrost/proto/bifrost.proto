@@ -7,8 +7,8 @@ option go_package = "github.com/avamsi/heimdall/bifrost/proto";
 import "google/protobuf/timestamp.proto";
 
 service Bifrost {
-    rpc Preexec (PreexecRequest) returns (PreexecResponse) {}
-    rpc Precmd (PrecmdRequest) returns (PrecmdResponse) {}
+    rpc CommandStart (CommandStartRequest) returns (CommandStartResponse) {}
+    rpc CommandEnd (CommandEndRequest) returns (CommandEndResponse) {}
     rpc ListCommands (ListCommandsRequest) returns (ListCommandsResponse) {}
     rpc WaitForCommand (WaitForCommandRequest) returns (WaitForCommandResponse) {}
     rpc CacheCommand (CacheCommandRequest) returns (CacheCommandResponse) {}
@@ -16,31 +16,31 @@ service Bifrost {
 
 message Command {
     string command = 1;
-    google.protobuf.Timestamp preexec_time = 2;
+    google.protobuf.Timestamp start_time = 2;
     // Empty for "new" commands.
     string id = 3;
 }
 
-// rpc Preexec
+// rpc CommandStart
 
-message PreexecRequest {
+message CommandStartRequest {
 	Command command = 1;
 }
 
-message PreexecResponse {
+message CommandStartResponse {
     string id = 1;
 }
 
-// rpc Precmd
+// rpc CommandEnd
 
-message PrecmdRequest {
+message CommandEndRequest {
 	Command command = 1;
     int32 return_code = 2;
     bool force_notify = 3;
     google.protobuf.Timestamp last_interaction_time = 4;
 }
 
-message PrecmdResponse {}
+message CommandEndResponse {}
 
 // rpc ListCommands
 
