@@ -14,6 +14,7 @@ import (
 
 	"github.com/rs/xid"
 	"google.golang.org/grpc"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/avamsi/ergo"
 
@@ -59,7 +60,7 @@ type bifrost struct {
 	msgs     chan string
 	syncCmds struct {
 		sync.Mutex
-		m map[string]command // string is the ID returned by CommandStart
+		m map[string]command // string is the command ID
 	}
 	syncCmdsCache struct {
 		sync.Mutex
@@ -84,6 +85,18 @@ func (b *bifrost) CommandStart(todo context.Context, req *pb.CommandStartRequest
 	return &pb.CommandStartResponse{Id: id}, nil
 }
 
+func (b *bifrost) startTime(cmd *pb.Command) *timestamppb.Timestamp {
+	if !cmd.ProtoReflect().Has(cmd.ProtoReflect().Descriptor().Fields().ByNumber(2)) {
+		b.syncCmds.Lock()
+		defer b.syncCmds.Unlock()
+		if cmd, ok := b.syncCmds.m[cmd.GetId()]; ok {
+			return cmd.GetStartTime()
+		}
+		return nil
+	}
+	return cmd.GetStartTime()
+}
+
 func (b *bifrost) commandEndAsync(req *pb.CommandEndRequest) {
 	defer func() {
 		b.syncCmds.Lock()
@@ -99,6 +112,9 @@ func (b *bifrost) commandEndAsync(req *pb.CommandEndRequest) {
 		return
 	}
 	cmd := req.GetCommand()
+	if cmd.GetCommand() == "" {
+		return
+	}
 	isPrefixOfCmd := func(prefix string) bool {
 		return strings.HasPrefix(cmd.GetCommand(), prefix)
 	}
@@ -110,7 +126,11 @@ func (b *bifrost) commandEndAsync(req *pb.CommandEndRequest) {
 	}
 	// Don't notify if the command ran or the user interacted with it (i.e.,
 	// the command accessed stdin) in the last 42 seconds.
-	start := cmd.GetStartTime().AsTime().Local()
+	t := b.startTime(cmd)
+	if t == nil {
+		return
+	}
+	start := t.AsTime().Local()
 	interaction := time.Since(start).Round(time.Second)
 	if i := req.GetLastInteractionTime().AsTime(); i.After(start) {
 		interaction = time.Since(start).Round(time.Second)

@@ -87,13 +87,18 @@ type StartOpts struct {
 // Starts adds a command to the list of currently running commands.
 func (h Heimdall) Start(opts StartOpts) string {
 	client := ergo.Must1(bifrost.NewClient(h.config()))
-	return ergo.Must1(client.CommandStart(context.Background(), &bpb.CommandStartRequest{
+	req := &bpb.CommandStartRequest{
 		Command: &bpb.Command{
-			Command:   opts.Cmd,
-			StartTime: &timestamppb.Timestamp{Seconds: opts.Time},
-			Id:        opts.ID,
+			Command: opts.Cmd,
+			Id:      opts.ID,
 		},
-	})).GetId()
+	}
+	if opts.Time != 0 {
+		req.Command.StartTime = &timestamppb.Timestamp{Seconds: opts.Time}
+	} else {
+		req.Command.StartTime = timestamppb.Now()
+	}
+	return ergo.Must1(client.CommandStart(context.Background(), req)).GetId()
 }
 
 type EndOpts struct {
@@ -111,16 +116,19 @@ type EndOpts struct {
 func (h Heimdall) End(opts EndOpts) error {
 	c := h.config()
 	client := ergo.Must1(bifrost.NewClient(c))
-	return ergo.Error1(client.CommandEnd(context.Background(), &bpb.CommandEndRequest{
+	req := &bpb.CommandEndRequest{
 		Command: &bpb.Command{
-			Command:   opts.Cmd,
-			StartTime: &timestamppb.Timestamp{Seconds: opts.StartTime},
-			Id:        strings.TrimSpace(opts.ID),
+			Command: opts.Cmd,
+			Id:      strings.TrimSpace(opts.ID),
 		},
 		ReturnCode:          opts.Code,
 		ForceNotify:         ergo.Must1(c.EnvAsBool("HEIMDALL_FORCE_NOTIFY")),
 		LastInteractionTime: timestamppb.New(atime.Get(ergo.Must1(os.Stdin.Stat()))),
-	}))
+	}
+	if opts.StartTime != 0 {
+		req.Command.StartTime = &timestamppb.Timestamp{Seconds: opts.StartTime}
+	}
+	return ergo.Error1(client.CommandEnd(context.Background(), req))
 }
 
 func (h Heimdall) list(ctx context.Context) []*bpb.Command {
