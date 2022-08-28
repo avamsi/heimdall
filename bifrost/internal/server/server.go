@@ -99,16 +99,25 @@ func (b *bifrost) precmdAsync(req *pb.PrecmdRequest) {
 	isPrefixOfCmd := func(prefix string) bool {
 		return strings.HasPrefix(cmd.GetCommand(), prefix)
 	}
-	// Don't notify if the command ran for less than 42 seconds / user requested to never be
-	// notified for it (unless the user requested to always be notified for it).
+	// Don't notify if the user requested to never be notified for the command
+	// (unless the user requested to always be notified for it).
 	alwaysNotify := anyOf(b.config.AlwaysNotifyCommands(), isPrefixOfCmd)
-	neverNotify := anyOf(b.config.NeverNotifyCommands(), isPrefixOfCmd)
-	t := cmd.GetPreexecTime().AsTime().Local()
-	d := time.Since(t).Round(time.Second)
-	if !alwaysNotify && (neverNotify || d < 42*time.Second) {
+	if !alwaysNotify && anyOf(b.config.NeverNotifyCommands(), isPrefixOfCmd) {
 		return
 	}
-	b.msgs <- fmt.Sprintf("```[%s + %s] $ %s -> %d```", t.Format(time.Kitchen), d, cmd.GetCommand(), req.GetReturnCode())
+	// Don't notify if the command ran or the user interacted with it (i.e.,
+	// the command accessed stdin) in the last 42 seconds.
+	t := cmd.GetPreexecTime().AsTime()
+	if i := req.GetLastInteractionTime().AsTime(); i.After(t) {
+		t = i
+	}
+	// TODO: this "42" should be configurable and not a magic number.
+	if time.Since(t).Round(time.Second) < 42*time.Second {
+		return
+	}
+	ts := cmd.GetPreexecTime().AsTime().Local().Format(time.Kitchen)
+	ds := time.Since(t).Round(time.Second).String()
+	b.msgs <- fmt.Sprintf("```[%s + %s][%d] $ %s```", ts, ds, req.GetReturnCode(), cmd.GetCommand())
 }
 
 func (b *bifrost) Precmd(todo context.Context, req *pb.PrecmdRequest) (*pb.PrecmdResponse, error) {

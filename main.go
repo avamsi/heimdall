@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"syscall"
 	"time"
 
 	_ "embed"
@@ -97,7 +98,7 @@ type PrecmdOpts struct {
 func (h Heimdall) Precmd(opts PrecmdOpts) error {
 	c := h.config()
 	client := ergo.Must1(bifrost.NewClient(c))
-	return ergo.Error1(client.Precmd(context.Background(), &bpb.PrecmdRequest{
+	req := &bpb.PrecmdRequest{
 		Command: &bpb.Command{
 			Command:     opts.Cmd,
 			PreexecTime: &timestamppb.Timestamp{Seconds: opts.PreexecTime},
@@ -105,7 +106,11 @@ func (h Heimdall) Precmd(opts PrecmdOpts) error {
 		},
 		ReturnCode:  opts.Code,
 		ForceNotify: ergo.Must1(c.EnvAsBool("HEIMDALL_FORCE_NOTIFY")),
-	}))
+	}
+	if stat, ok := ergo.Must1(os.Stdin.Stat()).Sys().(*syscall.Stat_t); ok {
+		req.LastInteractionTime = timestamppb.New(time.Unix(stat.Atimespec.Unix()))
+	}
+	return ergo.Error1(client.Precmd(context.Background(), req))
 }
 
 func (h Heimdall) list(ctx context.Context) []*bpb.Command {
