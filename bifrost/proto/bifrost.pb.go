@@ -30,7 +30,7 @@ type Command struct {
 
 	Command   string                 `protobuf:"bytes,1,opt,name=command,proto3" json:"command,omitempty"`
 	StartTime *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=start_time,json=startTime,proto3" json:"start_time,omitempty"`
-	// Empty for "new" commands.
+	// Can be empty for new commands (i.e., in CommandStart).
 	Id string `protobuf:"bytes,3,opt,name=id,proto3" json:"id,omitempty"`
 }
 
