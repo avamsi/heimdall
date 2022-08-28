@@ -76,7 +76,10 @@ func (b *bifrost) commandStartAsync(req *pb.CommandStartRequest, id string) {
 }
 
 func (b *bifrost) CommandStart(todo context.Context, req *pb.CommandStartRequest) (*pb.CommandStartResponse, error) {
-	id := xid.New().String()
+	id := req.GetCommand().GetId()
+	if id == "" {
+		id = xid.New().String()
+	}
 	go b.commandStartAsync(req, id)
 	return &pb.CommandStartResponse{Id: id}, nil
 }

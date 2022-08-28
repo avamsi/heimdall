@@ -17,7 +17,7 @@ service Bifrost {
 message Command {
     string command = 1;
     google.protobuf.Timestamp start_time = 2;
-    // Empty for "new" commands.
+    // Can be empty for new commands (i.e., in CommandStart).
     string id = 3;
 }
 

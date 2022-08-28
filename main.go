@@ -80,7 +80,8 @@ func (h Heimdall) config() *config.Config {
 
 type StartOpts struct {
 	Cmd  string
-	Time int64 // seconds from epoch
+	Time int64  // seconds from epoch
+	ID   string // (id of the command)
 }
 
 // Starts adds a command to the list of currently running commands.
@@ -90,6 +91,7 @@ func (h Heimdall) Start(opts StartOpts) string {
 		Command: &bpb.Command{
 			Command:   opts.Cmd,
 			StartTime: &timestamppb.Timestamp{Seconds: opts.Time},
+			Id:        opts.ID,
 		},
 	})).GetId()
 }
@@ -98,7 +100,7 @@ type EndOpts struct {
 	Cmd       string
 	StartTime int64  // seconds from epoch
 	Code      int32  // return code of the command
-	ID        string // id of the command (as originally returned by start)
+	ID        string // id of the command (from start)
 }
 
 // End removes a command from the list of currently running commands.
