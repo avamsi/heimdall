@@ -11,6 +11,8 @@ require (
 	google.golang.org/api v0.94.0
 )
 
+require github.com/djherbis/atime v1.1.0
+
 require (
 	cloud.google.com/go/compute v1.9.0 // indirect
 	github.com/atotto/clipboard v0.1.4 // indirect

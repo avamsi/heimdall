@@ -7,13 +7,13 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
-	"syscall"
 	"time"
 
 	_ "embed"
 
 	"github.com/avamsi/eclipse"
 	"github.com/avamsi/ergo"
+	"github.com/djherbis/atime"
 	"github.com/erikgeiser/promptkit/selection"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
@@ -98,19 +98,16 @@ type PrecmdOpts struct {
 func (h Heimdall) Precmd(opts PrecmdOpts) error {
 	c := h.config()
 	client := ergo.Must1(bifrost.NewClient(c))
-	req := &bpb.PrecmdRequest{
+	return ergo.Error1(client.Precmd(context.Background(), &bpb.PrecmdRequest{
 		Command: &bpb.Command{
 			Command:     opts.Cmd,
 			PreexecTime: &timestamppb.Timestamp{Seconds: opts.PreexecTime},
 			Id:          strings.TrimSpace(opts.ID),
 		},
-		ReturnCode:  opts.Code,
-		ForceNotify: ergo.Must1(c.EnvAsBool("HEIMDALL_FORCE_NOTIFY")),
-	}
-	if stat, ok := ergo.Must1(os.Stdin.Stat()).Sys().(*syscall.Stat_t); ok {
-		req.LastInteractionTime = timestamppb.New(time.Unix(stat.Atimespec.Unix()))
-	}
-	return ergo.Error1(client.Precmd(context.Background(), req))
+		ReturnCode:          opts.Code,
+		ForceNotify:         ergo.Must1(c.EnvAsBool("HEIMDALL_FORCE_NOTIFY")),
+		LastInteractionTime: timestamppb.New(atime.Get(ergo.Must1(os.Stdin.Stat()))),
+	}))
 }
 
 func (h Heimdall) list(ctx context.Context) []*bpb.Command {
