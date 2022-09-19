@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"math"
 	"net"
 	"os/exec"
 	"strings"
@@ -13,6 +12,7 @@ import (
 	"time"
 
 	"github.com/rs/xid"
+	"golang.org/x/exp/constraints"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
@@ -28,6 +28,20 @@ func anyOf[T any](s []T, pred func(T) bool) bool {
 		}
 	}
 	return false
+}
+
+func max[T constraints.Ordered](a, b T) T {
+	if a > b {
+		return a
+	}
+	return b
+}
+
+func min[T constraints.Ordered](a, b T) T {
+	if a < b {
+		return a
+	}
+	return b
 }
 
 type Config interface {
@@ -49,20 +63,22 @@ type command struct {
 
 type syncCachedCommand struct {
 	sync.Mutex
-	r   *pb.CacheCommandResponse
-	err error
+	sync.Cond
+	any     *pb.CacheCommandResponse
+	success *pb.CacheCommandResponse
+	ttl     chan time.Duration
 }
 
 type bifrost struct {
 	pb.UnimplementedBifrostServer
-	config   Config
-	notifier Notifier
-	msgs     chan string
-	syncCmds struct {
+	config          Config
+	notifier        Notifier
+	msgs            chan string
+	syncRunningCmds struct {
 		sync.Mutex
 		m map[string]command // string is the command ID
 	}
-	syncCmdsCache struct {
+	syncCachedCmds struct {
 		sync.Mutex
 		m map[string]*syncCachedCommand // string is the full command
 	}
@@ -71,9 +87,9 @@ type bifrost struct {
 func (b *bifrost) commandStartAsync(req *pb.CommandStartRequest, id string) {
 	cmd := req.GetCommand()
 	cmd.Id = id
-	b.syncCmds.Lock()
-	defer b.syncCmds.Unlock()
-	b.syncCmds.m[id] = command{cmd, make(chan nothing)}
+	b.syncRunningCmds.Lock()
+	defer b.syncRunningCmds.Unlock()
+	b.syncRunningCmds.m[id] = command{cmd, make(chan nothing)}
 }
 
 func (b *bifrost) CommandStart(todo context.Context, req *pb.CommandStartRequest) (*pb.CommandStartResponse, error) {
@@ -87,9 +103,9 @@ func (b *bifrost) CommandStart(todo context.Context, req *pb.CommandStartRequest
 
 func (b *bifrost) startTime(cmd *pb.Command) *timestamppb.Timestamp {
 	if !cmd.ProtoReflect().Has(cmd.ProtoReflect().Descriptor().Fields().ByNumber(2)) {
-		b.syncCmds.Lock()
-		defer b.syncCmds.Unlock()
-		if cmd, ok := b.syncCmds.m[cmd.GetId()]; ok {
+		b.syncRunningCmds.Lock()
+		defer b.syncRunningCmds.Unlock()
+		if cmd, ok := b.syncRunningCmds.m[cmd.GetId()]; ok {
 			return cmd.GetStartTime()
 		}
 		return nil
@@ -99,12 +115,12 @@ func (b *bifrost) startTime(cmd *pb.Command) *timestamppb.Timestamp {
 
 func (b *bifrost) commandEndAsync(req *pb.CommandEndRequest) {
 	defer func() {
-		b.syncCmds.Lock()
-		defer b.syncCmds.Unlock()
-		if cmd, ok := b.syncCmds.m[req.GetCommand().GetId()]; ok {
+		b.syncRunningCmds.Lock()
+		defer b.syncRunningCmds.Unlock()
+		if cmd, ok := b.syncRunningCmds.m[req.GetCommand().GetId()]; ok {
 			// This unblocks any goroutines waiting in WaitForCommand below.
 			close(cmd.done)
-			delete(b.syncCmds.m, cmd.GetId())
+			delete(b.syncRunningCmds.m, cmd.GetId())
 		}
 	}()
 	// Don't notify if the command was interrupted by the user.
@@ -150,22 +166,22 @@ func (b *bifrost) CommandEnd(todo context.Context, req *pb.CommandEndRequest) (*
 }
 
 func (b *bifrost) ListCommands(todo context.Context, _ *pb.ListCommandsRequest) (*pb.ListCommandsResponse, error) {
-	b.syncCmds.Lock()
-	defer b.syncCmds.Unlock()
+	b.syncRunningCmds.Lock()
+	defer b.syncRunningCmds.Unlock()
 	cmds := []*pb.Command{}
-	for _, cmd := range b.syncCmds.m {
+	for _, cmd := range b.syncRunningCmds.m {
 		cmds = append(cmds, cmd.Command)
 	}
 	return &pb.ListCommandsResponse{Commands: cmds}, nil
 }
 
 func (b *bifrost) WaitForCommand(ctx context.Context, req *pb.WaitForCommandRequest) (*pb.WaitForCommandResponse, error) {
-	b.syncCmds.Lock()
+	b.syncRunningCmds.Lock()
 	var done chan nothing
-	if cmd, ok := b.syncCmds.m[req.GetId()]; ok {
+	if cmd, ok := b.syncRunningCmds.m[req.GetId()]; ok {
 		done = cmd.done
 	}
-	b.syncCmds.Unlock()
+	b.syncRunningCmds.Unlock()
 	if done != nil {
 		select {
 		// Block till caller gives up or this command is done running (i.e., next CommandEnd call).
@@ -176,52 +192,68 @@ func (b *bifrost) WaitForCommand(ctx context.Context, req *pb.WaitForCommandRequ
 	return &pb.WaitForCommandResponse{}, nil
 }
 
-func runCommand(req *pb.CacheCommandRequest) (*pb.CacheCommandResponse, error) {
-	out, err := exec.Command(req.GetCommand(), req.GetArgs()...).Output()
-	resp := &pb.CacheCommandResponse{Stdout: string(out)}
+func runCommand(cmd exec.Cmd) (*pb.CacheCommandResponse, error) {
+	out, err := cmd.Output()
+	resp := &pb.CacheCommandResponse{Stdout: string(out), ReturnTime: timestamppb.Now()}
 	exitErr := &exec.ExitError{}
 	if err != nil && errors.As(err, &exitErr) {
 		err = nil
 		resp.Stderr = string(exitErr.Stderr)
 		resp.ReturnCode = int32(exitErr.ExitCode())
 	}
+	// TODO: should we panic on other non-exit errors?
 	return resp, err
 }
 
-func (b *bifrost) cacheCommandAsync(req *pb.CacheCommandRequest) {
+func (b *bifrost) cacheCommandAsync(cmd *exec.Cmd, syncCachedCmd *syncCachedCommand) {
+	minTTL := time.Duration(4.2 * float64(time.Second))
+	ttl := max(<-syncCachedCmd.ttl, minTTL)
 	for {
-		time.Sleep(time.Duration(math.Max(4.2, float64(req.GetTtl()))) * time.Second)
-		resp, err := runCommand(req)
-		cmd := exec.Command(req.GetCommand(), req.GetArgs()...).String()
-		b.syncCmdsCache.Lock()
-		syncCachedCmd, ok := b.syncCmdsCache.m[cmd]
-		if !ok {
-			b.syncCmdsCache.Unlock()
-			return
-		}
+		resp, err := runCommand(*cmd)
 		syncCachedCmd.Lock()
-		b.syncCmdsCache.Unlock()
-		syncCachedCmd.r, syncCachedCmd.err = resp, err
+		syncCachedCmd.any = resp
+		if err == nil {
+			syncCachedCmd.success = resp
+		}
+		syncCachedCmd.Broadcast()
 		syncCachedCmd.Unlock()
+		select {
+		case <-time.After(ttl):
+			continue
+		case newTTL, ok := <-syncCachedCmd.ttl:
+			if !ok {
+				return
+			}
+			ttl = min(ttl, max(newTTL, minTTL))
+			// TODO: ideally we'd continue sleeping here?
+		}
 	}
 }
 
 func (b *bifrost) CacheCommand(todo context.Context, req *pb.CacheCommandRequest) (*pb.CacheCommandResponse, error) {
-	cmd := exec.Command(req.GetCommand(), req.GetArgs()...).String()
-	b.syncCmdsCache.Lock()
-	syncCachedCmd, ok := b.syncCmdsCache.m[cmd]
+	cmd := exec.Command(req.GetCommand(), req.GetArgs()...)
+	cmdKey := cmd.String()
+	b.syncCachedCmds.Lock()
+	syncCachedCmd, ok := b.syncCachedCmds.m[cmdKey]
+	ttl := time.Duration(req.GetWithin()) * time.Second
 	if !ok {
 		syncCachedCmd = &syncCachedCommand{}
+		syncCachedCmd.Cond.L = &syncCachedCmd.Mutex
+		syncCachedCmd.ttl = make(chan time.Duration)
+		b.syncCachedCmds.m[cmdKey] = syncCachedCmd
+		go b.cacheCommandAsync(cmd, syncCachedCmd)
 	}
-	b.syncCmdsCache.m[cmd] = syncCachedCmd
+	b.syncCachedCmds.Unlock()
 	syncCachedCmd.Lock()
-	b.syncCmdsCache.Unlock()
 	defer syncCachedCmd.Unlock()
-	if !ok {
-		syncCachedCmd.r, syncCachedCmd.err = runCommand(req)
-		go b.cacheCommandAsync(req)
+	syncCachedCmd.ttl <- ttl
+	if time.Since(syncCachedCmd.success.GetReturnTime().AsTime()) <= ttl {
+		return syncCachedCmd.success, nil
+	} else if req.GetAny() && time.Since(syncCachedCmd.any.GetReturnTime().AsTime()) <= ttl {
+		return syncCachedCmd.any, nil
 	}
-	return syncCachedCmd.r, syncCachedCmd.err
+	syncCachedCmd.Wait()
+	return syncCachedCmd.any, nil
 }
 
 type server struct {
@@ -264,8 +296,8 @@ func (s *server) Stop() {
 
 func New(c Config, notifier Notifier) *server {
 	b := &bifrost{config: c, notifier: notifier, msgs: make(chan string, 42)}
-	b.syncCmds.m = map[string]command{}
-	b.syncCmdsCache.m = map[string]*syncCachedCommand{}
+	b.syncRunningCmds.m = map[string]command{}
+	b.syncCachedCmds.m = map[string]*syncCachedCommand{}
 	gs := grpc.NewServer()
 	pb.RegisterBifrostServer(gs, b)
 	return &server{addr: fmt.Sprintf("localhost:%d", c.BifrostPort()), b: b, gs: gs}
