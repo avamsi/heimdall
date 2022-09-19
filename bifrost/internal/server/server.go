@@ -201,6 +201,7 @@ func runCommand(cmd exec.Cmd) (*pb.CacheCommandResponse, error) {
 		resp.Stderr = string(exitErr.Stderr)
 		resp.ReturnCode = int32(exitErr.ExitCode())
 	}
+	// TODO: should we panic on other non-exit errors?
 	return resp, err
 }
 
