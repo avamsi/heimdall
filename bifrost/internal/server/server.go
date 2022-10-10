@@ -157,7 +157,11 @@ func (b *bifrost) commandEndAsync(req *pb.CommandEndRequest) {
 	}
 	ts := start.Format(time.Kitchen)
 	ds := time.Since(start).Round(time.Second).String()
-	b.msgs <- fmt.Sprintf("```[%s + %s -> %d] $ %s```", ts, ds, req.GetReturnCode(), cmd.GetCommand())
+	rc := ""
+	if req.GetReturnCode() != 0 {
+		rc = fmt.Sprintf(" -> ❌ %d", req.GetReturnCode())
+	}
+	b.msgs <- fmt.Sprintf("```[⌚ %s + ⌛ %s%s] $ %s```", ts, ds, rc, cmd.GetCommand())
 }
 
 func (b *bifrost) CommandEnd(todo context.Context, req *pb.CommandEndRequest) (*pb.CommandEndResponse, error) {
