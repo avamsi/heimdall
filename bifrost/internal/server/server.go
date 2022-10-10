@@ -162,7 +162,7 @@ func (b *bifrost) commandEndAsync(req *pb.CommandEndRequest) {
 		rc = fmt.Sprintf(" -> 🙅:%d", req.GetReturnCode())
 	}
 	md := fmt.Sprintf("⌚:%s + ⌛:%s%s\n🧑‍💻:%s@%s", ts, ds, rc, req.GetUsername(), req.GetHostname())
-	b.msgs <- fmt.Sprintf("```💲 %s\n%s```", cmd.GetCommand(), md)
+	b.msgs <- fmt.Sprintf("```💲 %s\n\n%s```", cmd.GetCommand(), md)
 }
 
 func (b *bifrost) CommandEnd(todo context.Context, req *pb.CommandEndRequest) (*pb.CommandEndResponse, error) {
