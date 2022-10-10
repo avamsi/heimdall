@@ -38,6 +38,8 @@ message CommandEndRequest {
     int32 return_code = 2;
     bool force_notify = 3;
     google.protobuf.Timestamp last_interaction_time = 4;
+    string username = 5;
+    string hostname = 6;
 }
 
 message CommandEndResponse {}

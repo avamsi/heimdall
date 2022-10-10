@@ -159,9 +159,10 @@ func (b *bifrost) commandEndAsync(req *pb.CommandEndRequest) {
 	ds := time.Since(start).Round(time.Second).String()
 	rc := ""
 	if req.GetReturnCode() != 0 {
-		rc = fmt.Sprintf(" -> ❌ %d", req.GetReturnCode())
+		rc = fmt.Sprintf(" -> 🙅:%d", req.GetReturnCode())
 	}
-	b.msgs <- fmt.Sprintf("```[⌚ %s + ⌛ %s%s] $ %s```", ts, ds, rc, cmd.GetCommand())
+	md := fmt.Sprintf("⌚:%s + ⌛:%s%s | 🧑‍💻:%s@%s", ts, ds, rc, req.GetUsername(), req.GetHostname())
+	b.msgs <- fmt.Sprintf("```%s\n💲 %s```", md, cmd.GetCommand())
 }
 
 func (b *bifrost) CommandEnd(todo context.Context, req *pb.CommandEndRequest) (*pb.CommandEndResponse, error) {

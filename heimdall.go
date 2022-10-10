@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"os/user"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -96,6 +97,8 @@ func (h Heimdall) End(opts EndOpts) error {
 		ReturnCode:          opts.Code,
 		ForceNotify:         ergo.Must1(c.EnvAsBool("HEIMDALL_FORCE_NOTIFY")),
 		LastInteractionTime: timestamppb.New(atime.Get(ergo.Must1(os.Stdin.Stat()))),
+		Username:            ergo.Must1(user.Current()).Username,
+		Hostname:            ergo.Must1(os.Hostname()),
 	}
 	if opts.StartTime != 0 {
 		req.Command.StartTime = &timestamppb.Timestamp{Seconds: opts.StartTime}
