@@ -4,7 +4,7 @@ go 1.18
 
 require (
 	github.com/avamsi/clifr v0.3.0
-	github.com/avamsi/ergo v0.1.0
+	github.com/avamsi/ergo v0.2.0
 	github.com/djherbis/atime v1.1.0
 	github.com/fsnotify/fsnotify v1.5.4
 	github.com/rs/xid v1.4.0
