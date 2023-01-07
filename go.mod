@@ -3,8 +3,8 @@ module github.com/avamsi/heimdall
 go 1.18
 
 require (
-	github.com/avamsi/eclipse v0.2.3
-	github.com/avamsi/ergo v0.0.0-20220813110843-329213a43bfc
+	github.com/avamsi/clifr v0.3.0
+	github.com/avamsi/ergo v0.1.0
 	github.com/djherbis/atime v1.1.0
 	github.com/fsnotify/fsnotify v1.5.4
 	github.com/rs/xid v1.4.0
@@ -12,11 +12,10 @@ require (
 	google.golang.org/api v0.98.0
 )
 
-require github.com/aymanbagabas/go-osc52 v1.0.3 // indirect
-
 require (
 	cloud.google.com/go/compute v1.10.0 // indirect
 	github.com/atotto/clipboard v0.1.4 // indirect
+	github.com/aymanbagabas/go-osc52 v1.0.3 // indirect
 	github.com/charmbracelet/bubbles v0.14.0 // indirect
 	github.com/charmbracelet/bubbletea v0.22.1 // indirect
 	github.com/charmbracelet/lipgloss v0.6.0 // indirect

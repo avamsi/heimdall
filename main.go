@@ -3,13 +3,13 @@ package main
 import (
 	_ "embed"
 
-	"github.com/avamsi/eclipse"
+	"github.com/avamsi/clifr"
 )
 
-//go:generate eclipse docs --out=eclipse.docs
-//go:embed eclipse.docs
+//go:generate clifr docs --out=clifr.docs
+//go:embed clifr.docs
 var docs []byte
 
 func main() {
-	eclipse.Execute(docs, Heimdall{}, Bifrost{})
+	clifr.Execute(docs, Heimdall{}, Bifrost{})
 }
